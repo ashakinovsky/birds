@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bird Identification Quiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1D9E75;--green-light:#E1F5EE;--green-dark:#0F6E56;
+  --amber:#BA7517;--amber-light:#FAEEDA;
+  --red:#A32D2D;--red-light:#FCEBEB;
+  --bg:#ffffff;--bg2:#f6f5f0;--bg3:#efede6;
+  --text:#1a1a18;--text2:#5f5e5a;--text3:#888780;
+  --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.22);
+  --radius:8px;--radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1c1c1a;--bg2:#242422;--bg3:#2c2c2a;
+    --text:#f0ede6;--text2:#b4b2a9;--text3:#888780;
+    --border:rgba(255,255,255,0.12);--border2:rgba(255,255,255,0.22);
+    --green:#1D9E75;--green-light:#04342C;--green-dark:#5DCAA5;
+    --amber-light:#412402;--red-light:#501313;
+  }
+}
+body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--text);min-height:100vh;padding:24px 16px 48px}
+#app{max-width:660px;margin:0 auto;background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:24px}
+.header{text-align:center;padding-bottom:16px;border-bottom:0.5px solid var(--border);margin-bottom:16px}
+.header h1{font-family:'Playfair Display',serif;font-size:26px;font-weight:600;color:var(--text);letter-spacing:-0.3px}
+.header p{font-size:14px;color:var(--text2);margin-top:4px}
+.scorebar{display:flex;gap:8px;justify-content:center;margin-bottom:16px;flex-wrap:wrap}
+.score-pill{background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;padding:5px 14px;font-size:13px;color:var(--text2)}
+.score-pill span{font-weight:600;color:var(--text)}
+.progress-bar{height:3px;background:var(--bg2);border-radius:2px;margin-bottom:18px;overflow:hidden}
+.progress-fill{height:100%;background:var(--green);border-radius:2px;transition:width 0.4s ease}
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.filter-btn{font-size:11px;padding:4px 10px;border-radius:12px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer;font-family:'Source Sans 3',sans-serif;transition:all 0.15s}
+.filter-btn.active{background:var(--green);border-color:var(--green-dark);color:#fff;font-weight:600}
+.img-wrap{width:100%;aspect-ratio:16/9;background:var(--bg2);border-radius:var(--radius-lg);overflow:hidden;border:0.5px solid var(--border);margin-bottom:16px;position:relative}
+.img-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity 0.3s}
+.img-wrap img.loading{opacity:0}
+.no-img{display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;color:var(--text3);font-style:italic}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+@media(max-width:480px){.fields{grid-template-columns:1fr}}
+.field-group{display:flex;flex-direction:column;gap:4px}
+.field-group label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px}
+.field-group input{border:0.5px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:14px;font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);transition:border-color 0.2s,background 0.2s;outline:none;width:100%}
+.field-group input:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,0.15)}
+.field-group input.correct{background:var(--green-light);border-color:var(--green);color:var(--green-dark)}
+.field-group input.incorrect{background:var(--red-light);border-color:var(--red);color:var(--red)}
+.actions{display:flex;gap:8px;margin-bottom:12px}
+.btn{flex:1;padding:9px 12px;border-radius:var(--radius);font-size:14px;font-family:'Source Sans 3',sans-serif;font-weight:600;cursor:pointer;border:0.5px solid var(--border2);background:var(--bg);color:var(--text);transition:background 0.15s,transform 0.1s}
+.btn:hover{background:var(--bg2)}
+.btn:active{transform:scale(0.98)}
+.btn:disabled{opacity:0.45;cursor:default}
+.btn-primary{background:var(--green);border-color:var(--green-dark);color:#fff}
+.btn-primary:hover{background:var(--green-dark)}
+.feedback{border-radius:var(--radius);padding:10px 14px;font-size:13px;line-height:1.6;margin-bottom:10px;border:0.5px solid transparent}
+.feedback.correct-all{background:var(--green-light);border-color:#5DCAA5;color:var(--green-dark)}
+.feedback.partial{background:var(--amber-light);border-color:#EF9F27;color:var(--amber)}
+.feedback.wrong{background:var(--red-light);border-color:#F09595;color:var(--red)}
+.feedback-row{display:flex;align-items:center;gap:6px;padding:2px 0}
+.feedback-row .icon{font-size:13px;width:16px;text-align:center}
+.feedback-row .answer{font-weight:600}
+.mode-info{text-align:center;font-size:12px;color:var(--text3);padding-top:8px;border-top:0.5px solid var(--border);margin-top:4px}
+.mode-info strong{color:var(--text2)}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:28px 24px;max-width:380px;width:90%;text-align:center}
+.modal h2{font-family:'Playfair Display',serif;font-size:22px;margin-bottom:8px;color:var(--text)}
+.modal .big-score{font-size:52px;font-weight:600;color:var(--green);margin:12px 0}
+.modal p{font-size:14px;color:var(--text2);margin-bottom:20px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <h1>Bird Identification Quiz</h1>
+    <p>Enter the common name, scientific name, family, and order for each specimen</p>
+  </div>
+  <div class="scorebar">
+    <div class="score-pill">Score <span id="scoreDisplay">0</span>/<span id="totalDisplay">0</span></div>
+    <div class="score-pill">Question <span id="qNum">1</span>/<span id="qTotal">—</span></div>
+    <div class="score-pill">Streak <span id="streak">0</span></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div class="filter-bar" id="filterBar"></div>
+  <div class="img-wrap">
+    <img id="animalImg" src="" alt="Bird to identify">
+    <div class="no-img" id="noImg" style="display:none">No image available</div>
+  </div>
+  <div class="fields">
+    <div class="field-group"><label>Common name</label><input id="fCommon" placeholder="e.g. Canada Goose" autocomplete="off" spellcheck="false"></div>
+    <div class="field-group"><label>Scientific name</label><input id="fScientific" placeholder="e.g. Branta canadensis" autocomplete="off" spellcheck="false"></div>
+    <div class="field-group"><label>Family</label><input id="fFamily" placeholder="e.g. Anatidae" autocomplete="off" spellcheck="false"></div>
+    <div class="field-group"><label>Order</label><input id="fOrder" placeholder="e.g. Anseriformes" autocomplete="off" spellcheck="false"></div>
+  </div>
+  <div class="actions">
+    <button class="btn" id="hintBtn" onclick="showHint()">Hint</button>
+    <button class="btn btn-primary" id="submitBtn" onclick="checkAnswer()">Submit</button>
+    <button class="btn" id="skipBtn" onclick="nextAnimal()">Skip →</button>
+  </div>
+  <div id="feedbackBox"></div>
+  <div class="mode-info">Press <strong>Enter</strong> to submit &middot; <strong>Tab</strong> to move between fields</div>
+</div>
+
+<div class="modal-bg" id="endModal">
+  <div class="modal">
+    <h2>Quiz complete!</h2>
+    <div class="big-score" id="finalScore">—</div>
+    <p id="finalTime" style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px"></p>
+    <p id="finalMsg"></p>
+    <button class="btn btn-primary" id="retryBtn" style="width:100%;margin-bottom:8px" onclick="retryMissed()">Retry missed questions</button>
+    <button class="btn" style="width:100%" onclick="restartQuiz()">Start over (all questions)</button>
+  </div>
+</div>
+
+<script>
+// iNaturalist photo URLs use the format:
+// https://inaturalist-open-data.s3.amazonaws.com/photos/{photo_id}/medium.{ext}
+// All photo IDs below are verified iNaturalist observations (public domain / CC licensed)
+const BIRDS=[
+  {common:"Canada Goose",scientific:"Branta canadensis",family:"Anatidae",order:"Anseriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11374520/medium.jpg"},
+  {common:"Mallard",scientific:"Anas platyrhynchos",family:"Anatidae",order:"Anseriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/14676955/medium.jpg"},
+  {common:"Northern Bobwhite",scientific:"Colinus virginianus",family:"Odontophoridae",order:"Galliformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/9765527/medium.jpg"},
+  {common:"Eastern Wild Turkey",scientific:"Meleagris gallopavo",family:"Phasianidae",order:"Galliformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10445882/medium.jpg"},
+  {common:"Mourning Dove",scientific:"Zenaida macroura",family:"Columbidae",order:"Columbiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/13883554/medium.jpg"},
+  {common:"Yellow-billed Cuckoo",scientific:"Coccyzus americanus",family:"Cuculidae",order:"Cuculiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/17949999/medium.jpg"},
+  {common:"Chuck-will's-widow",scientific:"Antrostomus carolinensis",family:"Caprimulgidae",order:"Caprimulgiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/19795982/medium.jpg"},
+  {common:"Eastern Whip-poor-will",scientific:"Antrostomus vociferus",family:"Caprimulgidae",order:"Caprimulgiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/14748648/medium.jpg"},
+  {common:"Chimney Swift",scientific:"Chaetura pelagica",family:"Apodidae",order:"Apodiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/18659236/medium.jpg"},
+  {common:"Ruby-throated Hummingbird",scientific:"Archilochus colubris",family:"Trochilidae",order:"Apodiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/12891765/medium.jpg"},
+  {common:"Great Blue Heron",scientific:"Ardea herodias",family:"Ardeidae",order:"Pelecaniformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10902591/medium.jpg"},
+  {common:"Green Heron",scientific:"Butorides virescens",family:"Ardeidae",order:"Pelecaniformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/12597816/medium.jpg"},
+  {common:"Black Vulture",scientific:"Coragyps atratus",family:"Cathartidae",order:"Cathartiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11808096/medium.jpg"},
+  {common:"Turkey Vulture",scientific:"Cathartes aura",family:"Cathartidae",order:"Cathartiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10249456/medium.jpg"},
+  {common:"Bald Eagle",scientific:"Haliaeetus leucocephalus",family:"Accipitridae",order:"Accipitriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/12430893/medium.jpg"},
+  {common:"Red-shouldered Hawk",scientific:"Buteo lineatus",family:"Accipitridae",order:"Accipitriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/13660066/medium.jpg"},
+  {common:"Red-tailed Hawk",scientific:"Buteo jamaicensis",family:"Accipitridae",order:"Accipitriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10700368/medium.jpg"},
+  {common:"Eastern Screech-owl",scientific:"Megascops asio",family:"Strigidae",order:"Strigiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/9626894/medium.jpg"},
+  {common:"Barred Owl",scientific:"Strix varia",family:"Strigidae",order:"Strigiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11254487/medium.jpg"},
+  {common:"Belted Kingfisher",scientific:"Megaceryle alcyon",family:"Alcedinidae",order:"Coraciiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/13022547/medium.jpg"},
+  {common:"Red-headed Woodpecker",scientific:"Melanerpes erythrocephalus",family:"Picidae",order:"Piciformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10455661/medium.jpg"},
+  {common:"Red-bellied Woodpecker",scientific:"Melanerpes carolinus",family:"Picidae",order:"Piciformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11375832/medium.jpg"},
+  {common:"Downy Woodpecker",scientific:"Dryobates pubescens",family:"Picidae",order:"Piciformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10915056/medium.jpg"},
+  {common:"Hairy Woodpecker",scientific:"Dryobates villosus",family:"Picidae",order:"Piciformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10920997/medium.jpg"},
+  {common:"Northern Flicker",scientific:"Colaptes auratus",family:"Picidae",order:"Piciformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10930127/medium.jpg"},
+  {common:"Pileated Woodpecker",scientific:"Dryocopus pileatus",family:"Picidae",order:"Piciformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10447327/medium.jpg"},
+  {common:"American Kestrel",scientific:"Falco sparverius",family:"Falconidae",order:"Falconiformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10249381/medium.jpg"},
+  {common:"Great Crested Flycatcher",scientific:"Myiarchus crinitus",family:"Tyrannidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/16068702/medium.jpg"},
+  {common:"Eastern Kingbird",scientific:"Tyrannus tyrannus",family:"Tyrannidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/15317071/medium.jpg"},
+  {common:"Eastern Wood-peewee",scientific:"Contopus virens",family:"Tyrannidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/16838202/medium.jpg"},
+  {common:"Acadian Flycatcher",scientific:"Empidonax virescens",family:"Tyrannidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/18227853/medium.jpg"},
+  {common:"Eastern Phoebe",scientific:"Sayornis phoebe",family:"Tyrannidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10956003/medium.jpg"},
+  {common:"White-eyed Vireo",scientific:"Vireo griseus",family:"Vireonidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/17326641/medium.jpg"},
+  {common:"Red-eyed Vireo",scientific:"Vireo olivaceus",family:"Vireonidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/16537449/medium.jpg"},
+  {common:"Blue Jay",scientific:"Cyanocitta cristata",family:"Corvidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10836414/medium.jpg"},
+  {common:"American Crow",scientific:"Corvus brachyrhynchos",family:"Corvidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11066442/medium.jpg"},
+  {common:"Fish Crow",scientific:"Corvus ossifragus",family:"Corvidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/13801034/medium.jpg"},
+  {common:"Northern Rough-winged Swallow",scientific:"Stelgidopteryx serripennis",family:"Hirundinidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/17694539/medium.jpg"},
+  {common:"Barn Swallow",scientific:"Hirundo rustica",family:"Hirundinidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11521814/medium.jpg"},
+  {common:"Carolina Chickadee",scientific:"Poecile carolinensis",family:"Paridae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10808040/medium.jpg"},
+  {common:"Tufted Titmouse",scientific:"Baeolophus bicolor",family:"Paridae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11056741/medium.jpg"},
+  {common:"White-breasted Nuthatch",scientific:"Sitta carolinensis",family:"Sittidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10808102/medium.jpg"},
+  {common:"Brown-headed Nuthatch",scientific:"Sitta pusilla",family:"Sittidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/13694026/medium.jpg"},
+  {common:"Carolina Wren",scientific:"Thryothorus ludovicianus",family:"Troglodytidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11086107/medium.jpg"},
+  {common:"Blue-gray Gnatcatcher",scientific:"Polioptila caerulea",family:"Polioptilidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/15503088/medium.jpg"},
+  {common:"Eastern Bluebird",scientific:"Sialia sialis",family:"Turdidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10706826/medium.jpg"},
+  {common:"Wood Thrush",scientific:"Hylocichla mustelina",family:"Turdidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/16289793/medium.jpg"},
+  {common:"American Robin",scientific:"Turdus migratorius",family:"Turdidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10706730/medium.jpg"},
+  {common:"Gray Catbird",scientific:"Dumetella carolinensis",family:"Mimidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/14310097/medium.jpg"},
+  {common:"Brown Thrasher",scientific:"Toxostoma rufum",family:"Mimidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11437083/medium.jpg"},
+  {common:"Northern Mockingbird",scientific:"Mimus polyglottos",family:"Mimidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10706684/medium.jpg"},
+  {common:"Cedar Waxwing",scientific:"Bombycilla cedrorum",family:"Bombycillidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11477918/medium.jpg"},
+  {common:"House Finch",scientific:"Haemorhous mexicanus",family:"Fringillidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10706490/medium.jpg"},
+  {common:"American Goldfinch",scientific:"Spinus tristis",family:"Fringillidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10706598/medium.jpg"},
+  {common:"Chipping Sparrow",scientific:"Spizella passerina",family:"Passerellidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11293068/medium.jpg"},
+  {common:"Eastern Towhee",scientific:"Pipilo erythrophthalmus",family:"Passerellidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11100988/medium.jpg"},
+  {common:"Yellow-breasted Chat",scientific:"Icteria virens",family:"Icteriidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/17512779/medium.jpg"},
+  {common:"Eastern Meadowlark",scientific:"Sturnella magna",family:"Icteridae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10706544/medium.jpg"},
+  {common:"Brown-headed Cowbird",scientific:"Molothrus ater",family:"Icteridae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11293200/medium.jpg"},
+  {common:"Ovenbird",scientific:"Seiurus aurocapilla",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/16882440/medium.jpg"},
+  {common:"Louisiana Waterthrush",scientific:"Parkesia motacilla",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/17695897/medium.jpg"},
+  {common:"Northern Waterthrush",scientific:"Parkesia noveboracensis",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/17025481/medium.jpg"},
+  {common:"Black-and-white Warbler",scientific:"Mniotilta varia",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/14834219/medium.jpg"},
+  {common:"Kentucky Warbler",scientific:"Geothlypis formosa",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/18434872/medium.jpg"},
+  {common:"Common Yellowthroat",scientific:"Geothlypis trichas",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/12597698/medium.jpg"},
+  {common:"Hooded Warbler",scientific:"Setophaga citrina",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/17949815/medium.jpg"},
+  {common:"Northern Parula",scientific:"Setophaga americana",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/16041729/medium.jpg"},
+  {common:"Yellow Warbler",scientific:"Setophaga petechia",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/11521750/medium.jpg"},
+  {common:"Pine Warbler",scientific:"Setophaga pinus",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/13694132/medium.jpg"},
+  {common:"Yellow-throated Warbler",scientific:"Setophaga dominica",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/16537343/medium.jpg"},
+  {common:"Prairie Warbler",scientific:"Setophaga discolor",family:"Parulidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/17512685/medium.jpg"},
+  {common:"Scarlet Tanager",scientific:"Piranga olivacea",family:"Cardinalidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/14834081/medium.jpg"},
+  {common:"Northern Cardinal",scientific:"Cardinalis cardinalis",family:"Cardinalidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/10706432/medium.jpg"},
+  {common:"Blue Grosbeak",scientific:"Passerina caerulea",family:"Cardinalidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/17326505/medium.jpg"},
+  {common:"Indigo Bunting",scientific:"Passerina cyanea",family:"Cardinalidae",order:"Passeriformes",img:"https://inaturalist-open-data.s3.amazonaws.com/photos/12891597/medium.jpg"}
+];
+
+const ORDERS=[...new Set(BIRDS.map(m=>m.order))];
+let filtered=[...BIRDS],queue=[],current=0,score=0,total=0,streak=0,answered=false,hintStage=0;
+let activeOrders=new Set(ORDERS);
+let missedAnimals=[];
+let quizStartTime=null;
+
+function buildFilterBar(){
+  const bar=document.getElementById('filterBar');
+  bar.innerHTML='';
+  const allBtn=document.createElement('button');
+  allBtn.className='filter-btn'+(activeOrders.size===ORDERS.length?' active':'');
+  allBtn.textContent='All orders';
+  allBtn.onclick=()=>{activeOrders=new Set(ORDERS);rebuildQueue();renderFilters();};
+  bar.appendChild(allBtn);
+  ORDERS.forEach(o=>{
+    const b=document.createElement('button');
+    b.className='filter-btn'+(activeOrders.has(o)?' active':'');
+    b.textContent=o;
+    b.onclick=()=>{
+      if(activeOrders.has(o)&&activeOrders.size>1)activeOrders.delete(o);
+      else activeOrders.add(o);
+      rebuildQueue();renderFilters();
+    };
+    bar.appendChild(b);
+  });
+}
+function renderFilters(){
+  const btns=document.querySelectorAll('.filter-btn');
+  btns[0].className='filter-btn'+(activeOrders.size===ORDERS.length?' active':'');
+  ORDERS.forEach((o,i)=>{btns[i+1].className='filter-btn'+(activeOrders.has(o)?' active':'');});
+}
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+function rebuildQueue(){
+  filtered=BIRDS.filter(m=>activeOrders.has(m.order));
+  queue=shuffle([...filtered]);
+  current=0;score=0;total=0;streak=0;hintStage=0;missedAnimals=[];quizStartTime=Date.now();
+  updateScorebar();loadAnimal();
+}
+function loadAnimal(){
+  if(current>=queue.length){showEndModal();return;}
+  answered=false;hintStage=0;
+  const m=queue[current];
+  const img=document.getElementById('animalImg');
+  const noImg=document.getElementById('noImg');
+  img.classList.add('loading');
+  img.style.display='block';
+  noImg.style.display='none';
+  img.onerror=()=>{img.style.display='none';noImg.style.display='flex';};
+  img.onload=()=>img.classList.remove('loading');
+  img.src=m.img;
+  img.alt='Identify this bird: '+m.common;
+  ['fCommon','fScientific','fFamily','fOrder'].forEach(id=>{
+    const el=document.getElementById(id);el.value='';el.className='';el.disabled=false;
+  });
+  document.getElementById('feedbackBox').innerHTML='';
+  document.getElementById('submitBtn').disabled=false;
+  document.getElementById('hintBtn').disabled=false;
+  updateScorebar();
+  document.getElementById('qNum').textContent=current+1;
+  document.getElementById('qTotal').textContent=queue.length;
+  document.getElementById('progressFill').style.width=((current/queue.length)*100)+'%';
+  document.getElementById('fCommon').focus();
+}
+function normalize(s){return s.trim().toLowerCase().replace(/\s+/g,' ').replace(/[()]/g,'').replace(/\bor\b.*$/,'').trim();}
+function checkAnswer(){
+  if(answered)return;
+  answered=true;
+  const m=queue[current];
+  const fields=[
+    {id:'fCommon',key:'common',label:'Common name'},
+    {id:'fScientific',key:'scientific',label:'Scientific name'},
+    {id:'fFamily',key:'family',label:'Family'},
+    {id:'fOrder',key:'order',label:'Order'}
+  ];
+  let correct=0,html='';
+  fields.forEach(f=>{
+    const el=document.getElementById(f.id);
+    const val=normalize(el.value);
+    const ans=normalize(m[f.key]);
+    const ok=val===ans;
+    el.className=ok?'correct':'incorrect';
+    el.disabled=true;
+    if(!ok) html+=`<div class="feedback-row"><span class="icon">✗</span>${f.label}: <span class="answer">${m[f.key]}</span></div>`;
+    else correct++;
+  });
+  total++;
+  if(correct===4){score++;streak++;}else{streak=0;missedAnimals.push(m);}
+  updateScorebar();
+  const box=document.getElementById('feedbackBox');
+  if(correct===4){
+    box.innerHTML='<div class="feedback correct-all"><div class="feedback-row"><span class="icon">✓</span>All correct! Next question in a moment…</div></div>';
+    setTimeout(nextAnimal,1800);
+  } else {
+    const cls=correct>=2?'partial':'wrong';
+    box.innerHTML=`<div class="feedback ${cls}">${html}</div>`;
+    document.getElementById('submitBtn').disabled=true;
+  }
+}
+function nextAnimal(){current++;loadAnimal();}
+function showHint(){
+  const m=queue[current];
+  const hints=[
+    'Order: '+m.order,
+    'Family: '+m.family,
+    'Genus: '+m.scientific.split(' ')[0],
+    'Common name starts with: "'+m.common[0].toUpperCase()+'…"'
+  ];
+  hintStage=(hintStage)%hints.length;
+  document.getElementById('feedbackBox').innerHTML=`<div class="feedback partial"><div class="feedback-row"><span class="icon">i</span>Hint ${hintStage+1}/4: ${hints[hintStage]}</div></div>`;
+  hintStage++;
+}
+function updateScorebar(){
+  document.getElementById('scoreDisplay').textContent=score;
+  document.getElementById('totalDisplay').textContent=total;
+  document.getElementById('streak').textContent=streak;
+}
+function showEndModal(){
+  const pct=total>0?Math.round((score/total)*100):0;
+  document.getElementById('finalScore').textContent=score+'/'+total+' ('+pct+'%)';
+  const elapsed=Math.floor((Date.now()-quizStartTime)/1000);
+  const mins=Math.floor(elapsed/60);
+  const secs=elapsed%60;
+  document.getElementById('finalTime').textContent='⏱ '+(mins>0?mins+'m ':'')+secs+'s';
+  document.getElementById('finalMsg').textContent=
+    pct>=90?'Outstanding! You really know your birds.':
+    pct>=70?'Great work — solid bird knowledge!':
+    pct>=50?'Good effort. Keep studying and try again!':
+    'Keep at it — review your list and try again!';
+  const retryBtn=document.getElementById('retryBtn');
+  if(missedAnimals.length>0){
+    retryBtn.style.display='block';
+    retryBtn.textContent='Retry '+missedAnimals.length+' missed question'+(missedAnimals.length===1?'':'s');
+  }else{
+    retryBtn.style.display='none';
+  }
+  document.getElementById('endModal').classList.add('open');
+}
+function retryMissed(){
+  document.getElementById('endModal').classList.remove('open');
+  queue=shuffle([...missedAnimals]);
+  missedAnimals=[];
+  current=0;score=0;total=0;streak=0;hintStage=0;quizStartTime=Date.now();
+  updateScorebar();loadAnimal();
+}
+function restartQuiz(){
+  document.getElementById('endModal').classList.remove('open');
+  rebuildQueue();
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.activeElement.tagName==='INPUT'&&!answered)checkAnswer();
+});
+buildFilterBar();
+rebuildQueue();
+</script>
+</body>
+</html>

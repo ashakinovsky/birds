@@ -257,9 +257,21 @@ const audioCache = {};
 async function fetchXenoCantoRecordings(scientific) {
   if (audioCache[scientific]) return audioCache[scientific];
   try {
-    const res = await fetch(`https://xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientific)}+q:A&page=1`);
+    const res = await fetch(`https://xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States+lat:30:37+lon:-85:-75&page=1`);
     const data = await res.json();
-    const recs = (data.recordings || []).filter(r => r.file && r.file.startsWith('http'));
+    let recs = (data.recordings || []).filter(r => r.file && r.file.startsWith('http'));
+    // fallback: no regional results, try US-wide
+    if (!recs.length) {
+      const res2 = await fetch(`https://xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States&page=1`);
+      const data2 = await res2.json();
+      recs = (data2.recordings || []).filter(r => r.file && r.file.startsWith('http'));
+    }
+    // fallback: still nothing, try worldwide
+    if (!recs.length) {
+      const res3 = await fetch(`https://xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientific)}+q:A&page=1`);
+      const data3 = await res3.json();
+      recs = (data3.recordings || []).filter(r => r.file && r.file.startsWith('http'));
+    }
     audioCache[scientific] = recs;
     return recs;
   } catch(e) {}

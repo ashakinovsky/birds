@@ -309,7 +309,7 @@ async function loadAudio(scientific, resetIndex) {
   refreshBtn.disabled = true;
 
   const token = loadingToken;
-  const recordings = await fetchXenoCantoRecordings(currentBird.scientificName);
+  const recordings = await fetchXenoCantoRecordings(scientific);
   if (token !== loadingToken) return;
 
   currentAudioRecs = recs;

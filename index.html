@@ -261,7 +261,7 @@ const audioCache = {};
 async function fetchXenoCantoRecordings(scientific) {
   if (audioCache[scientific]) return audioCache[scientific];
   try {
-    const res = await fetch(`https://xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States+lat:30:37+lon:-85:-75&page=1`);
+    const res = await fetch(`https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States+lat:30:37+lon:-85:-75&page=1`);
     const data = await res.json();
     let recs = (data.recordings || []).filter(r => r.file && r.file.startsWith('http'));
     // fallback: no regional results, try US-wide

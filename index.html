@@ -256,74 +256,82 @@ async function fetchTaxonPhoto(scientific) {
 }
 // Audio cache: scientific name -> array of recording objects
 const audioCache = {};
-const CORS_PROXY = "https://cors-anywhere.herokuapp.com/";
 
-async function fetchXenoCantoRecordings(scientific) {
-  // Clean up the input string just in case there are trailing spaces or uppercase errors
+// Using AllOrigins proxy to completely bypass CORS dynamically
+const PROXY_URL = "https://api.allorigins.win/get?url=";
+
+async function fetchAndEmbedBirdAudio(scientific) {
   const speciesQuery = encodeURIComponent(scientific.trim().toLowerCase());
+  const container = document.getElementById('audio-container');
   
-  if (audioCache[speciesQuery]) return audioCache[speciesQuery];
+  if (!container) return;
+  container.innerHTML = "Searching for audio..."; // Loading state
 
-  console.log(`🔎 Starting audio fetch for species string: "${scientific.trim()}"`);
+  // Check cache first
+  if (audioCache[speciesQuery]) {
+    injectIframe(audioCache[speciesQuery]);
+    return;
+  }
 
-  const processData = (data) => {
-    if (!data.recordings) {
-      console.warn("⚠️ API response structure unexpected (missing 'recordings' array):", data);
-      return [];
-    }
-    return data.recordings
-      .map(r => {
-        if (r.file && r.file.startsWith('//')) r.file = `https:${r.file}`;
-        return r;
-      })
-      .filter(r => r.file && r.file.startsWith('http'));
-  };
-
+  // Your original fallback logic, adapted for the CORS bypass proxy
+  const targetUrl = `https://xeno-canto.org/api/3/recordings?query=${speciesQuery}+q:A+cnt:United+States+lat:30:37+lon:-85:-75&page=1`;
+  
   try {
-    // Attempt 1: Strict regional search
-    console.log("📡 Attempt 1: Fetching regional US recordings...");
-    let res = await fetch(`${CORS_PROXY}https://xeno-canto.org/api/3/recordings?query=${speciesQuery}+q:A+cnt:United+States+lat:30:37+lon:-85:-75&page=1`);
-    let data = await res.json();
-    let recs = processData(data);
-    console.log(`📊 Attempt 1 found: ${recs.length} valid audio files.`);
+    // AllOrigins wraps the response, so we fetch it like this:
+    const res = await fetch(`${PROXY_URL}${encodeURIComponent(targetUrl)}`);
+    const proxyData = await res.json();
+    const data = JSON.parse(proxyData.contents); // Parse the raw string back to JSON
 
-    // Attempt 2: US Wide
+    let recs = data.recordings || [];
+
+    // Fallback 1: US-wide if regional is empty
     if (!recs.length) {
-      console.log("📡 Attempt 2: Regional empty. Fetching US-wide...");
-      res = await fetch(`${CORS_PROXY}https://xeno-canto.org/api/3/recordings?query=${speciesQuery}+q:A+cnt:United+States&page=1`);
-      data = await res.json();
-      recs = processData(data);
-      console.log(`📊 Attempt 2 found: ${recs.length} valid audio files.`);
+      const fallbackUrl1 = `https://xeno-canto.org/api/3/recordings?query=${speciesQuery}+q:A+cnt:United+States&page=1`;
+      const res2 = await fetch(`${PROXY_URL}${encodeURIComponent(fallbackUrl1)}`);
+      const proxyData2 = await res2.json();
+      const data2 = JSON.parse(proxyData2.contents);
+      recs = data2.recordings || [];
     }
 
-    // Attempt 3: Global
+    // Fallback 2: Worldwide if US-wide is empty
     if (!recs.length) {
-      console.log("📡 Attempt 3: US-wide empty. Fetching worldwide...");
-      res = await fetch(`${CORS_PROXY}https://xeno-canto.org/api/3/recordings?query=${speciesQuery}+q:A&page=1`);
-      data = await res.json();
-      recs = processData(data);
-      console.log(`📊 Attempt 3 found: ${recs.length} valid audio files.`);
+      const fallbackUrl2 = `https://xeno-canto.org/api/3/recordings?query=${speciesQuery}+q:A&page=1`;
+      const res3 = await fetch(`${PROXY_URL}${encodeURIComponent(fallbackUrl2)}`);
+      const proxyData3 = await res3.json();
+      const data3 = JSON.parse(proxyData3.contents);
+      recs = data3.recordings || [];
     }
 
     if (recs.length > 0) {
-      console.log(`✅ Success! Sample audio URL found: ${recs[0].file}`);
+      audioCache[speciesQuery] = recs[0].id; // Cache just the top recording ID
+      injectIframe(recs[0].id);              // Pass the ID to the iframe builder
     } else {
-      console.error(`❌ Total failure. Xeno-Canto has 0 'A' quality recordings matching "${scientific}".`);
+      container.innerHTML = `No recordings found for "${scientific}".`;
     }
 
-    audioCache[speciesQuery] = recs;
-    return recs;
-
-  } catch (error) {
-    console.error("💥 Network/CORS Error caught:");
-    console.error(error);
-    
-    if (error.message.includes("Failed to fetch")) {
-      console.error("💡 This is almost certainly a CORS block. Please visit https://cors-anywhere.herokuapp.com/corsdemo and hit 'Request temporary access', then refresh your app.");
-    }
+  } catch (e) {
+    console.error("Error fetching data:", e);
+    container.innerHTML = "Error loading audio player.";
   }
-  return [];
 }
+
+// The clean iframe helper function from Option 1
+function injectIframe(recordingId) {
+  const container = document.getElementById('audio-container');
+  container.innerHTML = `
+    <iframe 
+      src="https://xeno-canto.org/${recordingId}/embed?simple=1" 
+      frameborder="0" 
+      width="100%" 
+      height="150" 
+      allowtransparency="true">
+    </iframe>
+  `;
+}
+
+// --- HOW TO TEST IT ---
+// Automatically searches Xeno-Canto, finds the best ID, and embeds the iframe!
+fetchAndEmbedBirdAudio("Cardinalis cardinalis");
 
 let currentAudioIndex = 0;
 let currentAudioRecs = [];

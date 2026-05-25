@@ -260,27 +260,56 @@ const audioCache = {};
 
 async function fetchXenoCantoRecordings(scientific) {
   if (audioCache[scientific]) return audioCache[scientific];
-  const PROXY = 'https://corsproxy.io/?url=';
-  const xcBase = 'https://xeno-canto.org/api/2/recordings?query=';
 
-  async function xcFetch(query) {
-    const url = PROXY + encodeURIComponent(xcBase + query);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    return (data.recordings || []).filter(r => r.file);
-  }
+  // Use the Anthropic API as a server-side proxy to bypass CORS.
+  // Claude fetches xeno-canto data and returns structured JSON.
+  const prompt = `Fetch this URL and return ONLY a valid JSON array (no markdown, no explanation):
+https://xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientific + ' q:A cnt:United States')}&page=1
+
+Return the "recordings" array from the response. Each object should keep these fields: id, file, rec, cnt, type, en.
+If the fetch fails or returns no results, try: https://xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientific + ' q:A')}&page=1
+Return [] if still nothing.`;
 
   try {
-    const q = encodeURIComponent(scientific);
-    // Try regional first (NC/SE US), then US-wide, then worldwide
-    let recs = await xcFetch(q + '+q:A+cnt:United+States+lat:30:37+lon:-85:-75');
-    if (!recs.length) recs = await xcFetch(q + '+q:A+cnt:United+States');
-    if (!recs.length) recs = await xcFetch(q + '+q:A');
-    audioCache[scientific] = recs;
-    return recs;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) throw new Error('Anthropic API error: ' + res.status);
+    const data = await res.json();
+
+    // Extract text from the response
+    const text = (data.content || [])
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
+    // Parse JSON — strip any accidental markdown fences
+    const clean = text.replace(/```json|```/g, '').trim();
+    // Find JSON array in the response
+    const match = clean.match(/\[[\s\S]*\]/);
+    if (!match) { audioCache[scientific] = []; return []; }
+
+    const recs = JSON.parse(match[0]);
+    // Ensure file URLs are absolute
+    const normalized = recs
+      .filter(r => r && r.file)
+      .map(r => ({
+        ...r,
+        file: r.file.startsWith('//') ? 'https:' + r.file : r.file
+      }));
+
+    audioCache[scientific] = normalized;
+    return normalized;
   } catch(e) {
-    console.error('Xeno-Canto fetch error:', e);
+    console.error('Audio fetch error:', e);
   }
   return [];
 }

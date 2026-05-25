@@ -40,7 +40,7 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
 .filter-btn{font-size:11px;padding:4px 10px;border-radius:12px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer;font-family:'Source Sans 3',sans-serif;transition:all 0.15s}
 .filter-btn.active{background:var(--green);border-color:var(--green-dark);color:#fff;font-weight:600}
 .img-wrap{width:100%;aspect-ratio:16/9;background:var(--bg2);border-radius:var(--radius-lg);overflow:hidden;border:0.5px solid var(--border);margin-bottom:16px;position:relative}
-.img-wrap img{width:100%;height:100%;object-fit:contain;display:block;transition:opacity 0.3s}
+.img-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity 0.3s}
 .img-wrap img.loading{opacity:0}
 .no-img{display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;color:var(--text3);font-style:italic}
 .img-loading-msg{display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;color:var(--text3)}
@@ -49,7 +49,6 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
 .field-group{display:flex;flex-direction:column;gap:4px}
 .field-group label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px}
 .field-group input{border:0.5px solid var(--border2);border-radius:var(--radius);padding:8px 10px;font-size:14px;font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);transition:border-color 0.2s,background 0.2s;outline:none;width:100%}
-  #fScientific { font-style: italic; }
 .field-group input:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(29,158,117,0.15)}
 .field-group input.correct{background:var(--green-light);border-color:var(--green);color:var(--green-dark)}
 .field-group input.incorrect{background:var(--red-light);border-color:var(--red);color:var(--red)}
@@ -76,6 +75,23 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
 .modal .big-score{font-size:52px;font-weight:600;color:var(--green);margin:12px 0}
 .modal p{font-size:14px;color:var(--text2);margin-bottom:20px}
 .inat-credit{position:absolute;bottom:6px;right:8px;font-size:10px;color:rgba(255,255,255,0.85);text-shadow:0 1px 3px rgba(0,0,0,0.6);background:rgba(0,0,0,0.25);padding:2px 6px;border-radius:4px;pointer-events:none;display:none}
+#fScientific{font-style:italic}
+.mode-toggle{display:flex;gap:6px;justify-content:center;margin-bottom:14px}
+.mode-toggle-btn{font-size:12px;padding:5px 16px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer;font-family:'Source Sans 3',sans-serif;font-weight:600;transition:all 0.15s}
+.mode-toggle-btn.active{background:var(--green);border-color:var(--green-dark);color:#fff}
+.audio-wrap{width:100%;background:var(--bg2);border-radius:var(--radius-lg);border:0.5px solid var(--border);margin-bottom:16px;padding:20px 18px;display:none;flex-direction:column;gap:12px}
+.audio-wrap.visible{display:flex}
+.audio-bird-icon{font-size:40px;text-align:center;line-height:1}
+.audio-player-area{display:flex;flex-direction:column;gap:8px;align-items:center}
+audio{width:100%;border-radius:var(--radius);accent-color:var(--green)}
+.audio-meta{font-size:11px;color:var(--text3);text-align:center;line-height:1.5}
+.audio-meta a{color:var(--green);text-decoration:none}
+.audio-meta a:hover{text-decoration:underline}
+.audio-controls{display:flex;gap:8px;justify-content:center}
+.btn-sm{padding:6px 14px;font-size:12px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer;font-family:'Source Sans 3',sans-serif;font-weight:600;transition:background 0.15s}
+.btn-sm:hover{background:var(--bg3)}
+.btn-sm:disabled{opacity:0.4;cursor:default}
+.audio-loading{font-size:13px;color:var(--text3);text-align:center;padding:16px 0;font-style:italic}
 </style>
 </head>
 <body>
@@ -91,22 +107,33 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
   <div class="filter-bar" id="filterBar"></div>
-  <div class="img-wrap" id="imgWrap">
+  <div class="mode-toggle">
+    <button class="mode-toggle-btn active" id="modePhoto" onclick="setMode('photo')">📷 Photo</button>
+    <button class="mode-toggle-btn" id="modeAudio" onclick="setMode('audio')">🔊 Audio</button>
+  </div>
+  <div class="img-wrap" id="imgWrap" style="display:block">
     <div class="img-loading-msg" id="imgLoadingMsg">Loading photo…</div>
     <img id="animalImg" src="" alt="Bird to identify" style="display:none">
     <div class="no-img" id="noImg" style="display:none">No image available</div>
     <div class="inat-credit" id="inatCredit">Photo © iNaturalist</div>
   </div>
-  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="toggleBar">
-  <button class="filter-btn active" id="togFamily" onclick="toggleField('fFamily','togFamily')">Family</button>
-  <button class="filter-btn active" id="togOrder" onclick="toggleField('fOrder','togOrder')">Order</button>
-</div>
-<div class="fields">
-  <div class="field-group"><label>Common name</label><input id="fCommon" placeholder="e.g. Eastern Box Turtle" autocomplete="off" spellcheck="false"></div>
-  <div class="field-group"><label>Scientific name</label><input id="fScientific" placeholder="e.g. Terrapene carolina" autocomplete="off" spellcheck="false"></div>
-  <div class="field-group" id="wrapFamily"><label>Family</label><input id="fFamily" placeholder="e.g. Emydidae" autocomplete="off" spellcheck="false"></div>
-  <div class="field-group" id="wrapOrder"><label>Order</label><input id="fOrder" placeholder="e.g. Testudines" autocomplete="off" spellcheck="false"></div>
-</div>
+  <div class="audio-wrap" id="audioWrap">
+    <div class="audio-bird-icon">🐦</div>
+    <div class="audio-loading" id="audioLoading">Loading recording…</div>
+    <div class="audio-player-area" id="audioPlayerArea" style="display:none">
+      <audio id="audioPlayer" controls preload="auto"></audio>
+      <div class="audio-meta" id="audioMeta"></div>
+    </div>
+    <div class="audio-controls">
+      <button class="btn-sm" id="refreshAudioBtn" onclick="refreshAudio()">↻ Different recording</button>
+    </div>
+  </div>
+  <div class="fields">
+    <div class="field-group"><label>Common name</label><input id="fCommon" placeholder="e.g. Canada Goose" autocomplete="off" spellcheck="false"></div>
+    <div class="field-group"><label>Scientific name</label><input id="fScientific" placeholder="e.g. Branta canadensis" autocomplete="off" spellcheck="false"></div>
+    <div class="field-group"><label>Family</label><input id="fFamily" placeholder="e.g. Anatidae" autocomplete="off" spellcheck="false"></div>
+    <div class="field-group"><label>Order</label><input id="fOrder" placeholder="e.g. Anseriformes" autocomplete="off" spellcheck="false"></div>
+  </div>
   <div class="actions">
     <button class="btn" id="hintBtn" onclick="showHint()">Hint</button>
     <button class="btn btn-primary" id="submitBtn" onclick="checkAnswer()">Submit</button>
@@ -224,6 +251,110 @@ async function fetchTaxonPhoto(scientific) {
   return null;
 }
 
+// Audio cache: scientific name -> array of recording objects
+const audioCache = {};
+
+async function fetchXenoCantoRecordings(scientific) {
+  if (audioCache[scientific]) return audioCache[scientific];
+  try {
+    const res = await fetch(`https://xeno-canto.org/api/2/recordings?query=${encodeURIComponent(scientific)}+q:A&page=1`);
+    const data = await res.json();
+    const recs = (data.recordings || []).filter(r => r.file && r.file.startsWith('http'));
+    audioCache[scientific] = recs;
+    return recs;
+  } catch(e) {}
+  return [];
+}
+
+let currentAudioIndex = 0;
+let currentAudioRecs = [];
+let quizMode = 'photo'; // 'photo' or 'audio'
+
+function setMode(mode) {
+  quizMode = mode;
+  document.getElementById('modePhoto').classList.toggle('active', mode === 'photo');
+  document.getElementById('modeAudio').classList.toggle('active', mode === 'audio');
+  document.getElementById('imgWrap').style.display = mode === 'photo' ? 'block' : 'none';
+  document.getElementById('audioWrap').classList.toggle('visible', mode === 'audio');
+  // reload current question media
+  if (queue.length > 0 && current < queue.length) {
+    if (mode === 'audio') loadAudio(queue[current].scientific, true);
+    else loadPhoto(queue[current].scientific);
+  }
+}
+
+async function loadPhoto(scientific) {
+  const img = document.getElementById('animalImg');
+  const noImg = document.getElementById('noImg');
+  const loadMsg = document.getElementById('imgLoadingMsg');
+  const credit = document.getElementById('inatCredit');
+  img.style.display = 'none';
+  noImg.style.display = 'none';
+  credit.style.display = 'none';
+  loadMsg.style.display = 'flex';
+  loadMsg.textContent = 'Loading photo…';
+  const token = loadingToken;
+  const photoUrl = await fetchTaxonPhoto(scientific);
+  if (token !== loadingToken) return;
+  loadMsg.style.display = 'none';
+  if (photoUrl) {
+    img.style.display = 'block';
+    img.classList.add('loading');
+    img.onload = () => { img.classList.remove('loading'); credit.style.display = 'block'; };
+    img.onerror = () => { img.style.display = 'none'; noImg.style.display = 'flex'; };
+    img.src = photoUrl;
+  } else {
+    noImg.style.display = 'flex';
+  }
+}
+
+async function loadAudio(scientific, resetIndex) {
+  if (resetIndex) { currentAudioIndex = 0; currentAudioRecs = []; }
+  const loadingEl = document.getElementById('audioLoading');
+  const playerArea = document.getElementById('audioPlayerArea');
+  const refreshBtn = document.getElementById('refreshAudioBtn');
+  loadingEl.style.display = 'block';
+  loadingEl.textContent = 'Loading recording…';
+  playerArea.style.display = 'none';
+  refreshBtn.disabled = true;
+
+  const token = loadingToken;
+  const recs = await fetchXenoCantoRecordings(scientific);
+  if (token !== loadingToken) return;
+
+  currentAudioRecs = recs;
+  refreshBtn.disabled = false;
+
+  if (!recs.length) {
+    loadingEl.textContent = 'No recordings found.';
+    return;
+  }
+  loadingEl.style.display = 'none';
+  playerArea.style.display = 'flex';
+  showAudioRecording(currentAudioIndex);
+}
+
+function showAudioRecording(idx) {
+  const recs = currentAudioRecs;
+  if (!recs.length) return;
+  const r = recs[idx % recs.length];
+  const player = document.getElementById('audioPlayer');
+  const meta = document.getElementById('audioMeta');
+  player.src = r.file;
+  player.load();
+  const recorderName = r.rec || 'Unknown recordist';
+  const country = r.cnt || '';
+  const xcId = r.id;
+  const type = r.type || '';
+  meta.innerHTML = `Recorded by ${recorderName}${country ? ' · ' + country : ''}${type ? ' · ' + type : ''}<br><a href="https://xeno-canto.org/${xcId}" target="_blank">XC${xcId} · xeno-canto.org</a>`;
+}
+
+async function refreshAudio() {
+  if (!currentAudioRecs.length) return;
+  currentAudioIndex = (currentAudioIndex + 1) % currentAudioRecs.length;
+  showAudioRecording(currentAudioIndex);
+}
+
 const ORDERS=[...new Set(BIRDS.map(m=>m.order))];
 let filtered=[...BIRDS],queue=[],current=0,score=0,total=0,streak=0,answered=false,hintStage=0;
 let activeOrders=new Set(ORDERS);
@@ -268,17 +399,7 @@ async function loadAnimal(){
   if(current>=queue.length){showEndModal();return;}
   answered=false;hintStage=0;
   const m=queue[current];
-  const token=++loadingToken;
-
-  const img=document.getElementById('animalImg');
-  const noImg=document.getElementById('noImg');
-  const loadMsg=document.getElementById('imgLoadingMsg');
-  const credit=document.getElementById('inatCredit');
-  img.style.display='none';
-  noImg.style.display='none';
-  credit.style.display='none';
-  loadMsg.style.display='flex';
-  loadMsg.textContent='Loading photo…';
+  ++loadingToken;
 
   ['fCommon','fScientific','fFamily','fOrder'].forEach(id=>{
     const el=document.getElementById(id);el.value='';el.className='';el.disabled=false;
@@ -292,19 +413,10 @@ async function loadAnimal(){
   document.getElementById('progressFill').style.width=((current/queue.length)*100)+'%';
   document.getElementById('fCommon').focus();
 
-  const photoUrl = await fetchTaxonPhoto(m.scientific);
-  if(token !== loadingToken) return; // question changed while fetching
-
-  loadMsg.style.display='none';
-  if(photoUrl){
-    img.style.display='block';
-    img.classList.add('loading');
-    img.onload=()=>{img.classList.remove('loading'); credit.style.display='block';};
-    img.onerror=()=>{img.style.display='none'; noImg.style.display='flex'; credit.style.display='none';};
-    img.src=photoUrl;
-    img.alt='Identify this bird: '+m.common;
+  if(quizMode === 'audio'){
+    await loadAudio(m.scientific, true);
   } else {
-    noImg.style.display='flex';
+    await loadPhoto(m.scientific);
   }
 }
 
@@ -313,13 +425,12 @@ function checkAnswer(){
   if(answered)return;
   answered=true;
   const m=queue[current];
-    const fields = [
-    {id:'fCommon',    key:'common',    label:'Common name'},
+  const fields=[
+    {id:'fCommon',key:'common',label:'Common name'},
     {id:'fScientific',key:'scientific',label:'Scientific name'},
-    {id:'fFamily',    key:'family',    label:'Family'},
-    {id:'fOrder',     key:'order',     label:'Order'}
-  ].filter(f => fieldEnabled[f.id] !== false);
-  const totalFields = fields.length;
+    {id:'fFamily',key:'family',label:'Family'},
+    {id:'fOrder',key:'order',label:'Order'}
+  ];
   let correct=0,html='';
   fields.forEach(f=>{
     const el=document.getElementById(f.id);
@@ -332,10 +443,10 @@ function checkAnswer(){
     else correct++;
   });
   total++;
-  if(correct===totalFields){score++;streak++;}else{streak=0;missedAnimals.push(m);}
+  if(correct===4){score++;streak++;}else{streak=0;missedAnimals.push(m);}
   updateScorebar();
   const box=document.getElementById('feedbackBox');
-  if(correct===totalFields){
+  if(correct===4){
     box.innerHTML='<div class="feedback correct-all"><div class="feedback-row"><span class="icon">✓</span>All correct! Next question in a moment…</div></div>';
     setTimeout(nextAnimal,1800);
   } else {
@@ -399,15 +510,6 @@ document.addEventListener('keydown',e=>{
 });
 buildFilterBar();
 rebuildQueue();
-  const fieldEnabled = {fFamily: true, fOrder: true};
-
-function toggleField(fieldId, btnId) {
-  fieldEnabled[fieldId] = !fieldEnabled[fieldId];
-  const wrap = document.getElementById('wrap' + fieldId[1].toUpperCase() + fieldId.slice(2));
-  const btn = document.getElementById(btnId);
-  wrap.style.display = fieldEnabled[fieldId] ? '' : 'none';
-  btn.classList.toggle('active', fieldEnabled[fieldId]);
-}
 </script>
 </body>
 </html>

@@ -104,3 +104,438 @@ audio{width:100%;border-radius:var(--radius);accent-color:var(--green)}
     <div class="score-pill">Score <span id="scoreDisplay">0</span>/<span id="totalDisplay">0</span></div>
     <div class="score-pill">Question <span id="qNum">1</span>/<span id="qTotal">—</span></div>
     <div class="score-pill">Streak <span id="streak">0</span></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div class="filter-bar" id="filterBar"></div>
+  <div class="mode-toggle">
+    <button class="mode-toggle-btn active" id="modePhoto" onclick="setMode('photo')">📷 Photo</button>
+    <button class="mode-toggle-btn" id="modeAudio" onclick="setMode('audio')">🔊 Audio</button>
+  </div>
+  <div class="img-wrap" id="imgWrap" style="display:block">
+    <div class="img-loading-msg" id="imgLoadingMsg">Loading photo…</div>
+    <img id="animalImg" src="" alt="Bird to identify" style="display:none">
+    <div class="no-img" id="noImg" style="display:none">No image available</div>
+    <div class="inat-credit" id="inatCredit">Photo © iNaturalist</div>
+  </div>
+  <div class="audio-wrap" id="audioWrap">
+    <div class="audio-bird-icon">🐦</div>
+    <div class="audio-loading" id="audioLoading">Loading recording…</div>
+    <div class="audio-player-area" id="audioPlayerArea" style="display:none">
+      <audio id="audioPlayer" controls preload="auto"></audio>
+      <div class="audio-meta" id="audioMeta"></div>
+    </div>
+    <div class="audio-controls">
+      <button class="btn-sm" id="refreshAudioBtn" onclick="refreshAudio()">↻ Different recording</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="toggleBar">
+  <button class="filter-btn active" id="togFamily" onclick="toggleField('fFamily','togFamily')">Family</button>
+  <button class="filter-btn active" id="togOrder" onclick="toggleField('fOrder','togOrder')">Order</button>
+</div>
+<div class="fields">
+  <div class="field-group"><label>Common name</label><input id="fCommon" placeholder="e.g. Canada Goose" autocomplete="off" spellcheck="false"></div>
+  <div class="field-group"><label>Scientific name</label><input id="fScientific" placeholder="e.g. Branta canadensis" autocomplete="off" spellcheck="false"></div>
+  <div class="field-group" id="wrapFamily"><label>Family</label><input id="fFamily" placeholder="e.g. Anatidae" autocomplete="off" spellcheck="false"></div>
+  <div class="field-group" id="wrapOrder"><label>Order</label><input id="fOrder" placeholder="e.g. Anseriformes" autocomplete="off" spellcheck="false"></div>
+</div>
+  <div class="actions">
+    <button class="btn" id="hintBtn" onclick="showHint()">Hint</button>
+    <button class="btn btn-primary" id="submitBtn" onclick="checkAnswer()">Submit</button>
+    <button class="btn" id="skipBtn" onclick="nextAnimal()">Skip →</button>
+  </div>
+  <div id="feedbackBox"></div>
+  <div class="mode-info">Press <strong>Enter</strong> to submit &middot; <strong>Tab</strong> to move between fields</div>
+</div>
+
+<div class="modal-bg" id="endModal">
+  <div class="modal">
+    <h2>Quiz complete!</h2>
+    <div class="big-score" id="finalScore">—</div>
+    <p id="finalTime" style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px"></p>
+    <p id="finalMsg"></p>
+    <button class="btn btn-primary" id="retryBtn" style="width:100%;margin-bottom:8px" onclick="retryMissed()">Retry missed questions</button>
+    <button class="btn" style="width:100%" onclick="restartQuiz()">Start over (all questions)</button>
+  </div>
+</div>
+
+<script>
+const BIRDS=[
+  {common:"Canada Goose",scientific:"Branta canadensis",family:"Anatidae",order:"Anseriformes"},
+  {common:"Mallard",scientific:"Anas platyrhynchos",family:"Anatidae",order:"Anseriformes"},
+  {common:"Northern Bobwhite",scientific:"Colinus virginianus",family:"Odontophoridae",order:"Galliformes"},
+  {common:"Eastern Wild Turkey",scientific:"Meleagris gallopavo",family:"Phasianidae",order:"Galliformes"},
+  {common:"Mourning Dove",scientific:"Zenaida macroura",family:"Columbidae",order:"Columbiformes"},
+  {common:"Yellow-billed Cuckoo",scientific:"Coccyzus americanus",family:"Cuculidae",order:"Cuculiformes"},
+  {common:"Chuck-will's-widow",scientific:"Antrostomus carolinensis",family:"Caprimulgidae",order:"Caprimulgiformes"},
+  {common:"Eastern Whip-poor-will",scientific:"Antrostomus vociferus",family:"Caprimulgidae",order:"Caprimulgiformes"},
+  {common:"Chimney Swift",scientific:"Chaetura pelagica",family:"Apodidae",order:"Apodiformes"},
+  {common:"Ruby-throated Hummingbird",scientific:"Archilochus colubris",family:"Trochilidae",order:"Apodiformes"},
+  {common:"Great Blue Heron",scientific:"Ardea herodias",family:"Ardeidae",order:"Pelecaniformes"},
+  {common:"Green Heron",scientific:"Butorides virescens",family:"Ardeidae",order:"Pelecaniformes"},
+  {common:"Black Vulture",scientific:"Coragyps atratus",family:"Cathartidae",order:"Cathartiformes"},
+  {common:"Turkey Vulture",scientific:"Cathartes aura",family:"Cathartidae",order:"Cathartiformes"},
+  {common:"Bald Eagle",scientific:"Haliaeetus leucocephalus",family:"Accipitridae",order:"Accipitriformes"},
+  {common:"Red-shouldered Hawk",scientific:"Buteo lineatus",family:"Accipitridae",order:"Accipitriformes"},
+  {common:"Red-tailed Hawk",scientific:"Buteo jamaicensis",family:"Accipitridae",order:"Accipitriformes"},
+  {common:"Eastern Screech-owl",scientific:"Megascops asio",family:"Strigidae",order:"Strigiformes"},
+  {common:"Barred Owl",scientific:"Strix varia",family:"Strigidae",order:"Strigiformes"},
+  {common:"Belted Kingfisher",scientific:"Megaceryle alcyon",family:"Alcedinidae",order:"Coraciiformes"},
+  {common:"Red-headed Woodpecker",scientific:"Melanerpes erythrocephalus",family:"Picidae",order:"Piciformes"},
+  {common:"Red-bellied Woodpecker",scientific:"Melanerpes carolinus",family:"Picidae",order:"Piciformes"},
+  {common:"Downy Woodpecker",scientific:"Dryobates pubescens",family:"Picidae",order:"Piciformes"},
+  {common:"Hairy Woodpecker",scientific:"Dryobates villosus",family:"Picidae",order:"Piciformes"},
+  {common:"Northern Flicker",scientific:"Colaptes auratus",family:"Picidae",order:"Piciformes"},
+  {common:"Pileated Woodpecker",scientific:"Dryocopus pileatus",family:"Picidae",order:"Piciformes"},
+  {common:"American Kestrel",scientific:"Falco sparverius",family:"Falconidae",order:"Falconiformes"},
+  {common:"Great Crested Flycatcher",scientific:"Myiarchus crinitus",family:"Tyrannidae",order:"Passeriformes"},
+  {common:"Eastern Kingbird",scientific:"Tyrannus tyrannus",family:"Tyrannidae",order:"Passeriformes"},
+  {common:"Eastern Wood-peewee",scientific:"Contopus virens",family:"Tyrannidae",order:"Passeriformes"},
+  {common:"Acadian Flycatcher",scientific:"Empidonax virescens",family:"Tyrannidae",order:"Passeriformes"},
+  {common:"Eastern Phoebe",scientific:"Sayornis phoebe",family:"Tyrannidae",order:"Passeriformes"},
+  {common:"White-eyed Vireo",scientific:"Vireo griseus",family:"Vireonidae",order:"Passeriformes"},
+  {common:"Red-eyed Vireo",scientific:"Vireo olivaceus",family:"Vireonidae",order:"Passeriformes"},
+  {common:"Blue Jay",scientific:"Cyanocitta cristata",family:"Corvidae",order:"Passeriformes"},
+  {common:"American Crow",scientific:"Corvus brachyrhynchos",family:"Corvidae",order:"Passeriformes"},
+  {common:"Fish Crow",scientific:"Corvus ossifragus",family:"Corvidae",order:"Passeriformes"},
+  {common:"Northern Rough-winged Swallow",scientific:"Stelgidopteryx serripennis",family:"Hirundinidae",order:"Passeriformes"},
+  {common:"Barn Swallow",scientific:"Hirundo rustica",family:"Hirundinidae",order:"Passeriformes"},
+  {common:"Carolina Chickadee",scientific:"Poecile carolinensis",family:"Paridae",order:"Passeriformes"},
+  {common:"Tufted Titmouse",scientific:"Baeolophus bicolor",family:"Paridae",order:"Passeriformes"},
+  {common:"White-breasted Nuthatch",scientific:"Sitta carolinensis",family:"Sittidae",order:"Passeriformes"},
+  {common:"Brown-headed Nuthatch",scientific:"Sitta pusilla",family:"Sittidae",order:"Passeriformes"},
+  {common:"Carolina Wren",scientific:"Thryothorus ludovicianus",family:"Troglodytidae",order:"Passeriformes"},
+  {common:"Blue-gray Gnatcatcher",scientific:"Polioptila caerulea",family:"Polioptilidae",order:"Passeriformes"},
+  {common:"Eastern Bluebird",scientific:"Sialia sialis",family:"Turdidae",order:"Passeriformes"},
+  {common:"Wood Thrush",scientific:"Hylocichla mustelina",family:"Turdidae",order:"Passeriformes"},
+  {common:"American Robin",scientific:"Turdus migratorius",family:"Turdidae",order:"Passeriformes"},
+  {common:"Gray Catbird",scientific:"Dumetella carolinensis",family:"Mimidae",order:"Passeriformes"},
+  {common:"Brown Thrasher",scientific:"Toxostoma rufum",family:"Mimidae",order:"Passeriformes"},
+  {common:"Northern Mockingbird",scientific:"Mimus polyglottos",family:"Mimidae",order:"Passeriformes"},
+  {common:"Cedar Waxwing",scientific:"Bombycilla cedrorum",family:"Bombycillidae",order:"Passeriformes"},
+  {common:"House Finch",scientific:"Haemorhous mexicanus",family:"Fringillidae",order:"Passeriformes"},
+  {common:"American Goldfinch",scientific:"Spinus tristis",family:"Fringillidae",order:"Passeriformes"},
+  {common:"Chipping Sparrow",scientific:"Spizella passerina",family:"Passerellidae",order:"Passeriformes"},
+  {common:"Eastern Towhee",scientific:"Pipilo erythrophthalmus",family:"Passerellidae",order:"Passeriformes"},
+  {common:"Yellow-breasted Chat",scientific:"Icteria virens",family:"Icteriidae",order:"Passeriformes"},
+  {common:"Eastern Meadowlark",scientific:"Sturnella magna",family:"Icteridae",order:"Passeriformes"},
+  {common:"Brown-headed Cowbird",scientific:"Molothrus ater",family:"Icteridae",order:"Passeriformes"},
+  {common:"Ovenbird",scientific:"Seiurus aurocapilla",family:"Parulidae",order:"Passeriformes"},
+  {common:"Louisiana Waterthrush",scientific:"Parkesia motacilla",family:"Parulidae",order:"Passeriformes"},
+  {common:"Northern Waterthrush",scientific:"Parkesia noveboracensis",family:"Parulidae",order:"Passeriformes"},
+  {common:"Black-and-white Warbler",scientific:"Mniotilta varia",family:"Parulidae",order:"Passeriformes"},
+  {common:"Kentucky Warbler",scientific:"Geothlypis formosa",family:"Parulidae",order:"Passeriformes"},
+  {common:"Common Yellowthroat",scientific:"Geothlypis trichas",family:"Parulidae",order:"Passeriformes"},
+  {common:"Hooded Warbler",scientific:"Setophaga citrina",family:"Parulidae",order:"Passeriformes"},
+  {common:"Northern Parula",scientific:"Setophaga americana",family:"Parulidae",order:"Passeriformes"},
+  {common:"Yellow Warbler",scientific:"Setophaga petechia",family:"Parulidae",order:"Passeriformes"},
+  {common:"Pine Warbler",scientific:"Setophaga pinus",family:"Parulidae",order:"Passeriformes"},
+  {common:"Yellow-throated Warbler",scientific:"Setophaga dominica",family:"Parulidae",order:"Passeriformes"},
+  {common:"Prairie Warbler",scientific:"Setophaga discolor",family:"Parulidae",order:"Passeriformes"},
+  {common:"Scarlet Tanager",scientific:"Piranga olivacea",family:"Cardinalidae",order:"Passeriformes"},
+  {common:"Northern Cardinal",scientific:"Cardinalis cardinalis",family:"Cardinalidae",order:"Passeriformes"},
+  {common:"Blue Grosbeak",scientific:"Passerina caerulea",family:"Cardinalidae",order:"Passeriformes"},
+  {common:"Indigo Bunting",scientific:"Passerina cyanea",family:"Cardinalidae",order:"Passeriformes"}
+];
+
+// Cache: scientific name -> photo URL
+const photoCache = {};
+
+async function fetchTaxonPhoto(scientific) {
+  if (photoCache[scientific]) return photoCache[scientific];
+  try {
+    const url = `https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(scientific)}&rank=species&per_page=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const taxon = data.results && data.results[0];
+    if (taxon && taxon.default_photo && taxon.default_photo.medium_url) {
+      photoCache[scientific] = taxon.default_photo.medium_url;
+      return taxon.default_photo.medium_url;
+    }
+  } catch(e) {}
+  return null;
+}
+
+// Audio cache: scientific name -> array of recording objects
+const audioCache = {};
+
+async function fetchXenoCantoRecordings(scientific) {
+  if (audioCache[scientific]) return audioCache[scientific];
+  try {
+    const res = await fetch(`https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States+lat:30:37+lon:-85:-75&page=1`);
+    const data = await res.json();
+    let recs = (data.recordings || []).filter(r => r.file && r.file.startsWith('http'));
+    // fallback: no regional results, try US-wide
+    if (!recs.length) {
+      const res2 = await fetch(`https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States&page=1`);
+      const data2 = await res2.json();
+      recs = (data2.recordings || []).filter(r => r.file && r.file.startsWith('http'));
+    }
+    // fallback: still nothing, try worldwide
+    if (!recs.length) {
+      const res3 = await fetch(`https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A&page=1`);
+      const data3 = await res3.json();
+      recs = (data3.recordings || []).filter(r => r.file && r.file.startsWith('http'));
+    }
+    audioCache[scientific] = recs;
+    return recs;
+  } catch(e) {}
+  return [];
+}
+
+let currentAudioIndex = 0;
+let currentAudioRecs = [];
+let quizMode = 'photo'; // 'photo' or 'audio'
+
+function setMode(mode) {
+  quizMode = mode;
+  document.getElementById('modePhoto').classList.toggle('active', mode === 'photo');
+  document.getElementById('modeAudio').classList.toggle('active', mode === 'audio');
+  document.getElementById('imgWrap').style.display = mode === 'photo' ? 'block' : 'none';
+  document.getElementById('audioWrap').classList.toggle('visible', mode === 'audio');
+  // reload current question media
+  if (queue.length > 0 && current < queue.length) {
+    if (mode === 'audio') loadAudio(queue[current].scientific, true);
+    else loadPhoto(queue[current].scientific);
+  }
+}
+
+async function loadPhoto(scientific) {
+  const img = document.getElementById('animalImg');
+  const noImg = document.getElementById('noImg');
+  const loadMsg = document.getElementById('imgLoadingMsg');
+  const credit = document.getElementById('inatCredit');
+  img.style.display = 'none';
+  noImg.style.display = 'none';
+  credit.style.display = 'none';
+  loadMsg.style.display = 'flex';
+  loadMsg.textContent = 'Loading photo…';
+  const token = loadingToken;
+  const photoUrl = await fetchTaxonPhoto(scientific);
+  if (token !== loadingToken) return;
+  loadMsg.style.display = 'none';
+  if (photoUrl) {
+    img.style.display = 'block';
+    img.classList.add('loading');
+    img.onload = () => { img.classList.remove('loading'); credit.style.display = 'block'; };
+    img.onerror = () => { img.style.display = 'none'; noImg.style.display = 'flex'; };
+    img.src = photoUrl;
+  } else {
+    noImg.style.display = 'flex';
+  }
+}
+
+async function loadAudio(scientific, resetIndex) {
+  if (resetIndex) { currentAudioIndex = 0; currentAudioRecs = []; }
+  const loadingEl = document.getElementById('audioLoading');
+  const playerArea = document.getElementById('audioPlayerArea');
+  const refreshBtn = document.getElementById('refreshAudioBtn');
+  loadingEl.style.display = 'block';
+  loadingEl.textContent = 'Loading recording…';
+  playerArea.style.display = 'none';
+  refreshBtn.disabled = true;
+
+  const token = loadingToken;
+  const recs = await fetchXenoCantoRecordings(scientific);
+  if (token !== loadingToken) return;
+
+  currentAudioRecs = recs;
+  refreshBtn.disabled = false;
+
+  if (!recs.length) {
+    loadingEl.textContent = 'No recordings found.';
+    return;
+  }
+  loadingEl.style.display = 'none';
+  playerArea.style.display = 'flex';
+  showAudioRecording(currentAudioIndex);
+}
+
+function showAudioRecording(idx) {
+  const recs = currentAudioRecs;
+  if (!recs.length) return;
+  const r = recs[idx % recs.length];
+  const player = document.getElementById('audioPlayer');
+  const meta = document.getElementById('audioMeta');
+  player.src = r.file;
+  player.load();
+  const recorderName = r.rec || 'Unknown recordist';
+  const country = r.cnt || '';
+  const xcId = r.id;
+  const type = r.type || '';
+  meta.innerHTML = `Recorded by ${recorderName}${country ? ' · ' + country : ''}${type ? ' · ' + type : ''}<br><a href="https://xeno-canto.org/${xcId}" target="_blank">XC${xcId} · xeno-canto.org</a>`;
+}
+
+async function refreshAudio() {
+  if (!currentAudioRecs.length) return;
+  currentAudioIndex = (currentAudioIndex + 1) % currentAudioRecs.length;
+  showAudioRecording(currentAudioIndex);
+}
+
+const ORDERS=[...new Set(BIRDS.map(m=>m.order))];
+let filtered=[...BIRDS],queue=[],current=0,score=0,total=0,streak=0,answered=false,hintStage=0;
+let activeOrders=new Set(ORDERS);
+let missedAnimals=[];
+let quizStartTime=null;
+let loadingToken=0; // prevents stale async updates
+
+function buildFilterBar(){
+  const bar=document.getElementById('filterBar');
+  bar.innerHTML='';
+  const allBtn=document.createElement('button');
+  allBtn.className='filter-btn'+(activeOrders.size===ORDERS.length?' active':'');
+  allBtn.textContent='All orders';
+  allBtn.onclick=()=>{activeOrders=new Set(ORDERS);rebuildQueue();renderFilters();};
+  bar.appendChild(allBtn);
+  ORDERS.forEach(o=>{
+    const b=document.createElement('button');
+    b.className='filter-btn'+(activeOrders.has(o)?' active':'');
+    b.textContent=o;
+    b.onclick=()=>{
+      if(activeOrders.has(o)&&activeOrders.size>1)activeOrders.delete(o);
+      else activeOrders.add(o);
+      rebuildQueue();renderFilters();
+    };
+    bar.appendChild(b);
+  });
+}
+function renderFilters(){
+  const btns=document.querySelectorAll('.filter-btn');
+  btns[0].className='filter-btn'+(activeOrders.size===ORDERS.length?' active':'');
+  ORDERS.forEach((o,i)=>{btns[i+1].className='filter-btn'+(activeOrders.has(o)?' active':'');});
+}
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+function rebuildQueue(){
+  filtered=BIRDS.filter(m=>activeOrders.has(m.order));
+  queue=shuffle([...filtered]);
+  current=0;score=0;total=0;streak=0;hintStage=0;missedAnimals=[];quizStartTime=Date.now();
+  updateScorebar();loadAnimal();
+}
+
+async function loadAnimal(){
+  if(current>=queue.length){showEndModal();return;}
+  answered=false;hintStage=0;
+  const m=queue[current];
+  ++loadingToken;
+
+  ['fCommon','fScientific','fFamily','fOrder'].forEach(id=>{
+    const el=document.getElementById(id);el.value='';el.className='';el.disabled=false;
+  });
+  document.getElementById('feedbackBox').innerHTML='';
+  document.getElementById('submitBtn').disabled=false;
+  document.getElementById('hintBtn').disabled=false;
+  updateScorebar();
+  document.getElementById('qNum').textContent=current+1;
+  document.getElementById('qTotal').textContent=queue.length;
+  document.getElementById('progressFill').style.width=((current/queue.length)*100)+'%';
+  document.getElementById('fCommon').focus();
+
+  if(quizMode === 'audio'){
+    await loadAudio(m.scientific, true);
+  } else {
+    await loadPhoto(m.scientific);
+  }
+}
+
+function normalize(s){return s.trim().toLowerCase().replace(/\s+/g,' ').replace(/[()]/g,'').replace(/\bor\b.*$/,'').trim();}
+function checkAnswer(){
+  if(answered)return;
+  answered=true;
+  const m=queue[current];
+  const fields = [
+    {id:'fCommon',    key:'common',    label:'Common name'},
+    {id:'fScientific',key:'scientific',label:'Scientific name'},
+    {id:'fFamily',    key:'family',    label:'Family'},
+    {id:'fOrder',     key:'order',     label:'Order'}
+  ].filter(f => fieldEnabled[f.id] !== false);
+  const totalFields = fields.length;
+  let correct=0,html='';
+  fields.forEach(f=>{
+    const el=document.getElementById(f.id);
+    const val=normalize(el.value);
+    const ans=normalize(m[f.key]);
+    const ok=val===ans;
+    el.className=ok?'correct':'incorrect';
+    el.disabled=true;
+    if(!ok) html+=`<div class="feedback-row"><span class="icon">✗</span>${f.label}: <span class="answer">${m[f.key]}</span></div>`;
+    else correct++;
+  });
+  total++;
+  if(correct===totalFields){score++;streak++;}else{streak=0;missedAnimals.push(m);}
+  updateScorebar();
+  const box=document.getElementById('feedbackBox');
+  if(correct===totalFields){
+    box.innerHTML='<div class="feedback correct-all"><div class="feedback-row"><span class="icon">✓</span>All correct! Next question in a moment…</div></div>';
+    setTimeout(nextAnimal,1800);
+  } else {
+    const cls=correct>=2?'partial':'wrong';
+    box.innerHTML=`<div class="feedback ${cls}">${html}</div>`;
+    document.getElementById('submitBtn').disabled=true;
+  }
+}
+function nextAnimal(){current++;loadAnimal();}
+function showHint(){
+  const m=queue[current];
+  const hints=[
+    'Order: '+m.order,
+    'Family: '+m.family,
+    'Genus: '+m.scientific.split(' ')[0],
+    'Common name starts with: "'+m.common[0].toUpperCase()+'…"'
+  ];
+  hintStage=(hintStage)%hints.length;
+  document.getElementById('feedbackBox').innerHTML=`<div class="feedback partial"><div class="feedback-row"><span class="icon">i</span>Hint ${hintStage+1}/4: ${hints[hintStage]}</div></div>`;
+  hintStage++;
+}
+function updateScorebar(){
+  document.getElementById('scoreDisplay').textContent=score;
+  document.getElementById('totalDisplay').textContent=total;
+  document.getElementById('streak').textContent=streak;
+}
+function showEndModal(){
+  const pct=total>0?Math.round((score/total)*100):0;
+  document.getElementById('finalScore').textContent=score+'/'+total+' ('+pct+'%)';
+  const elapsed=Math.floor((Date.now()-quizStartTime)/1000);
+  const mins=Math.floor(elapsed/60);
+  const secs=elapsed%60;
+  document.getElementById('finalTime').textContent='⏱ '+(mins>0?mins+'m ':'')+secs+'s';
+  document.getElementById('finalMsg').textContent=
+    pct>=90?'Outstanding! You really know your birds.':
+    pct>=70?'Great work — solid bird knowledge!':
+    pct>=50?'Good effort. Keep studying and try again!':
+    'Keep at it — review your list and try again!';
+  const retryBtn=document.getElementById('retryBtn');
+  if(missedAnimals.length>0){
+    retryBtn.style.display='block';
+    retryBtn.textContent='Retry '+missedAnimals.length+' missed question'+(missedAnimals.length===1?'':'s');
+  }else{
+    retryBtn.style.display='none';
+  }
+  document.getElementById('endModal').classList.add('open');
+}
+function retryMissed(){
+  document.getElementById('endModal').classList.remove('open');
+  queue=shuffle([...missedAnimals]);
+  missedAnimals=[];
+  current=0;score=0;total=0;streak=0;hintStage=0;quizStartTime=Date.now();
+  updateScorebar();loadAnimal();
+}
+function restartQuiz(){
+  document.getElementById('endModal').classList.remove('open');
+  rebuildQueue();
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.activeElement.tagName==='INPUT'&&!answered)checkAnswer();
+});
+buildFilterBar();
+rebuildQueue();
+  const fieldEnabled = {fFamily: true, fOrder: true};
+
+function toggleField(fieldId, btnId) {
+  fieldEnabled[fieldId] = !fieldEnabled[fieldId];
+  const wrap = document.getElementById('wrap' + fieldId[1].toUpperCase() + fieldId.slice(2));
+  const btn = document.getElementById(btnId);
+  wrap.style.display = fieldEnabled[fieldId] ? '' : 'none';
+  btn.classList.toggle('active', fieldEnabled[fieldId]);
+}
+</script>
+</body>
+</html>

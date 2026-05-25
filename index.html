@@ -299,29 +299,38 @@ async function loadPhoto(scientific) {
 }
 
 async function loadAudio(scientific, resetIndex) {
-  if (resetIndex) { currentAudioIndex = 0; currentAudioRecs = []; }
+  if (resetIndex) { 
+    currentAudioIndex = 0; 
+    currentAudioRecs = []; 
+  }
+  
   const loadingEl = document.getElementById('audioLoading');
   const playerArea = document.getElementById('audioPlayerArea');
   const refreshBtn = document.getElementById('refreshAudioBtn');
+  
   loadingEl.style.display = 'block';
   loadingEl.textContent = 'Loading recording…';
   playerArea.style.display = 'none';
   refreshBtn.disabled = true;
 
   const token = loadingToken;
+  // Fetch recordings using 'scientific' variable
   const recordings = await fetchXenoCantoRecordings(scientific);
   if (token !== loadingToken) return;
 
-  currentAudioRecs = recs;
+  // Use 'recordings' instead of 'recs' to prevent reference errors
+  currentAudioRecs = recordings;
   refreshBtn.disabled = false;
 
-  if (!recs.length) {
+  // Check if any recordings were found by the iframe helper
+  const container = document.getElementById('audio-container');
+  if (!container || container.innerHTML.includes('No audio found')) {
     loadingEl.textContent = 'No recordings found.';
     return;
   }
+
   loadingEl.style.display = 'none';
   playerArea.style.display = 'flex';
-  showAudioRecording(currentAudioIndex);
 }
 
 function showAudioRecording(idx) {

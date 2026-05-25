@@ -256,54 +256,71 @@ async function fetchTaxonPhoto(scientific) {
 }
 // Audio cache: scientific name -> array of recording objects
 const audioCache = {};
-
-// Public CORS proxy for development (replace with your own backend proxy for production)
 const CORS_PROXY = "https://cors-anywhere.herokuapp.com/";
 
 async function fetchXenoCantoRecordings(scientific) {
-  if (audioCache[scientific]) return audioCache[scientific];
+  // Clean up the input string just in case there are trailing spaces or uppercase errors
+  const speciesQuery = encodeURIComponent(scientific.trim().toLowerCase());
   
-  // Helper to standardise audio file URLs
-  const formatRecordings = (recordings) => {
-    return (recordings || [])
+  if (audioCache[speciesQuery]) return audioCache[speciesQuery];
+
+  console.log(`🔎 Starting audio fetch for species string: "${scientific.trim()}"`);
+
+  const processData = (data) => {
+    if (!data.recordings) {
+      console.warn("⚠️ API response structure unexpected (missing 'recordings' array):", data);
+      return [];
+    }
+    return data.recordings
       .map(r => {
-        // If the URL starts with //, prepend https:
-        if (r.file && r.file.startsWith('//')) {
-          r.file = `https:${r.file}`;
-        }
+        if (r.file && r.file.startsWith('//')) r.file = `https:${r.file}`;
         return r;
       })
       .filter(r => r.file && r.file.startsWith('http'));
   };
 
   try {
-    // 1. Regional Fetch (US)
-    let res = await fetch(`${CORS_PROXY}https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States+lat:30:37+lon:-85:-75&page=1`);
+    // Attempt 1: Strict regional search
+    console.log("📡 Attempt 1: Fetching regional US recordings...");
+    let res = await fetch(`${CORS_PROXY}https://xeno-canto.org/api/3/recordings?query=${speciesQuery}+q:A+cnt:United+States+lat:30:37+lon:-85:-75&page=1`);
     let data = await res.json();
-    let recs = formatRecordings(data.recordings);
-    
-    // Fallback: US-wide
+    let recs = processData(data);
+    console.log(`📊 Attempt 1 found: ${recs.length} valid audio files.`);
+
+    // Attempt 2: US Wide
     if (!recs.length) {
-      console.log(`No regional audio for ${scientific}, trying US-wide...`);
-      res = await fetch(`${CORS_PROXY}https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States&page=1`);
+      console.log("📡 Attempt 2: Regional empty. Fetching US-wide...");
+      res = await fetch(`${CORS_PROXY}https://xeno-canto.org/api/3/recordings?query=${speciesQuery}+q:A+cnt:United+States&page=1`);
       data = await res.json();
-      recs = formatRecordings(data.recordings);
+      recs = processData(data);
+      console.log(`📊 Attempt 2 found: ${recs.length} valid audio files.`);
     }
-    
-    // Fallback: Worldwide
+
+    // Attempt 3: Global
     if (!recs.length) {
-      console.log(`No US audio for ${scientific}, trying Worldwide...`);
-      res = await fetch(`${CORS_PROXY}https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A&page=1`);
+      console.log("📡 Attempt 3: US-wide empty. Fetching worldwide...");
+      res = await fetch(`${CORS_PROXY}https://xeno-canto.org/api/3/recordings?query=${speciesQuery}+q:A&page=1`);
       data = await res.json();
-      recs = formatRecordings(data.recordings);
+      recs = processData(data);
+      console.log(`📊 Attempt 3 found: ${recs.length} valid audio files.`);
     }
-    
-    audioCache[scientific] = recs;
+
+    if (recs.length > 0) {
+      console.log(`✅ Success! Sample audio URL found: ${recs[0].file}`);
+    } else {
+      console.error(`❌ Total failure. Xeno-Canto has 0 'A' quality recordings matching "${scientific}".`);
+    }
+
+    audioCache[speciesQuery] = recs;
     return recs;
+
+  } catch (error) {
+    console.error("💥 Network/CORS Error caught:");
+    console.error(error);
     
-  } catch(e) {
-    // Never leave this empty! It hides network errors, typos, and API changes.
-    console.error("Xeno-Canto API Error:", e);
+    if (error.message.includes("Failed to fetch")) {
+      console.error("💡 This is almost certainly a CORS block. Please visit https://cors-anywhere.herokuapp.com/corsdemo and hit 'Request temporary access', then refresh your app.");
+    }
   }
   return [];
 }

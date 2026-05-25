@@ -331,6 +331,8 @@ async function loadAudio(scientific, resetIndex) {
 
   loadingEl.style.display = 'none';
   playerArea.style.display = 'flex';
+
+  showAudioRecording(currentAudioIndex);
 }
 
 function showAudioRecording(idx) {
@@ -588,6 +590,18 @@ function injectIframe(recordingId) {
     </iframe>
   `;
 }
+
+  <div id="audioLoading" style="display: none;"></div>
+
+<div id="audioPlayerArea" style="display: none;">
+    <audio id="audioPlayer" controls></audio>
+    
+    <div id="audioMeta"></div>
+</div>
+
+<div id="audio-container"></div>
+
+<button id="refreshAudioBtn" onclick="refreshAudio()">Next Recording</button>
   
 </script>
 </body>

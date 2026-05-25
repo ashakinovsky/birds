@@ -260,7 +260,7 @@ const audioCache = {};
 // Using AllOrigins proxy to completely bypass CORS dynamically
 const PROXY_URL = "https://api.allorigins.win/get?url=";
 
-async function fetchAndEmbedBirdAudio(scientific) {
+async function fetchXenoCantoRecordings(scientific) {
   const speciesQuery = encodeURIComponent(scientific.trim().toLowerCase());
   const container = document.getElementById('audio-container');
   

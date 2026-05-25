@@ -322,7 +322,7 @@ function showAudioRecording(idx) {
   const embed = document.getElementById('xcEmbed');
   const meta = document.getElementById('audioMeta');
   // XC simple embed player — no CORS, no API key, works on GitHub Pages or any host
-  embed.src = <iframe src=`https://xeno-canto.org/embed/simple/${id}?simple=1`crolling='no' frameborder='0' width='340' height='115'></iframe>
+    embed.src = `https://xeno-canto.org/embed/simple/${id}?simple=1`;
   meta.innerHTML = `<a href="https://xeno-canto.org/${id}" target="_blank">XC${id} · xeno-canto.org</a>`;
 }
 

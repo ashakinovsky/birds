@@ -260,25 +260,28 @@ const audioCache = {};
 
 async function fetchXenoCantoRecordings(scientific) {
   if (audioCache[scientific]) return audioCache[scientific];
-  try {
-    const res = await fetch(`https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States+lat:30:37+lon:-85:-75&page=1`);
+  const PROXY = 'https://corsproxy.io/?url=';
+  const xcBase = 'https://xeno-canto.org/api/2/recordings?query=';
+
+  async function xcFetch(query) {
+    const url = PROXY + encodeURIComponent(xcBase + query);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    let recs = (data.recordings || []).filter(r => r.file && r.file.startsWith('http'));
-    // fallback: no regional results, try US-wide
-    if (!recs.length) {
-      const res2 = await fetch(`https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A+cnt:United+States&page=1`);
-      const data2 = await res2.json();
-      recs = (data2.recordings || []).filter(r => r.file && r.file.startsWith('http'));
-    }
-    // fallback: still nothing, try worldwide
-    if (!recs.length) {
-      const res3 = await fetch(`https://xeno-canto.org/api/3/recordings?query=${encodeURIComponent(scientific)}+q:A&page=1`);
-      const data3 = await res3.json();
-      recs = (data3.recordings || []).filter(r => r.file && r.file.startsWith('http'));
-    }
+    return (data.recordings || []).filter(r => r.file);
+  }
+
+  try {
+    const q = encodeURIComponent(scientific);
+    // Try regional first (NC/SE US), then US-wide, then worldwide
+    let recs = await xcFetch(q + '+q:A+cnt:United+States+lat:30:37+lon:-85:-75');
+    if (!recs.length) recs = await xcFetch(q + '+q:A+cnt:United+States');
+    if (!recs.length) recs = await xcFetch(q + '+q:A');
     audioCache[scientific] = recs;
     return recs;
-  } catch(e) {}
+  } catch(e) {
+    console.error('Xeno-Canto fetch error:', e);
+  }
   return [];
 }
 

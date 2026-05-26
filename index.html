@@ -131,7 +131,7 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
   </div>
   <div class="fields">
     <div class="field-group"><label>Common name</label><input id="fCommon" placeholder="e.g. Canada Goose" autocomplete="off" spellcheck="false"></div>
-    <div class="field-group"><label>Scientific name</label><input id="fScientific" placeholder="e.g. Branta canadensis" autocomplete="off" spellcheck="false"></div>
+    <div class="field-group" id="scientificGroup"><label>Scientific name <button onclick="toggleScientific()" id="scientificToggle" style="font-size:10px;padding:1px 7px;border-radius:10px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text3);cursor:pointer;font-family:'Source Sans 3',sans-serif;margin-left:4px">hide</button></label><input id="fScientific" placeholder="e.g. Branta canadensis" autocomplete="off" spellcheck="false"></div>
     <div class="field-group" id="wrapFamily"><label>Family</label><input id="fFamily" placeholder="e.g. Anatidae" autocomplete="off" spellcheck="false"></div>
     <div class="field-group" id="wrapOrder"><label>Order</label><input id="fOrder" placeholder="e.g. Anseriformes" autocomplete="off" spellcheck="false"></div>
   </div>
@@ -402,7 +402,7 @@ function checkAnswer(){
   const m=queue[current];
   const fields=[
     {id:'fCommon',    key:'common',    label:'Common name'},
-    {id:'fScientific',key:'scientific',label:'Scientific name'},
+    {id:'fScientific',key:'scientific',label:'Scientific name',optional:true},
     {id:'fFamily',    key:'family',    label:'Family'},
     {id:'fOrder',     key:'order',     label:'Order'}
   ].filter(f=>fieldEnabled[f.id]!==false);
@@ -481,6 +481,14 @@ document.addEventListener('keydown',e=>{
 });
 buildFilterBar();
 rebuildQueue();
+  let scientificHidden = false;
+function toggleScientific() {
+  scientificHidden = !scientificHidden;
+  const input = document.getElementById('fScientific');
+  const btn = document.getElementById('scientificToggle');
+  input.style.display = scientificHidden ? 'none' : 'block';
+  btn.textContent = scientificHidden ? 'show' : 'hide';
+}
 </script>
 </body>
 </html>

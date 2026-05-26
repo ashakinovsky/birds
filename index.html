@@ -119,6 +119,7 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
   <div class="audio-wrap" id="audioWrap">
     <div class="audio-bird-icon">🐦</div>
     <iframe id="xcEmbed" class="xc-embed" height="52" scrolling="no" frameborder="0" src="about:blank"></iframe>
+    <audio id="customAudioPlayer" controls style="width:100%;display:none;border-radius:var(--radius)"></audio>
     <div class="audio-no-recording" id="audioNoRec">No recording available for this species.</div>
     <div class="audio-meta" id="audioMeta"></div>
     <div class="audio-controls">
@@ -126,12 +127,13 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
     </div>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap" id="toggleBar">
+    <button class="filter-btn active" id="togScientific" onclick="toggleField('fScientific','togScientific')">Scientific</button>
     <button class="filter-btn active" id="togFamily" onclick="toggleField('fFamily','togFamily')">Family</button>
     <button class="filter-btn active" id="togOrder" onclick="toggleField('fOrder','togOrder')">Order</button>
   </div>
   <div class="fields">
     <div class="field-group"><label>Common name</label><input id="fCommon" placeholder="e.g. Canada Goose" autocomplete="off" spellcheck="false"></div>
-    <div class="field-group" id="scientificGroup"><label>Scientific name <button onclick="toggleScientific()" id="scientificToggle" style="font-size:10px;padding:1px 7px;border-radius:10px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text3);cursor:pointer;font-family:'Source Sans 3',sans-serif;margin-left:4px">hide</button></label><input id="fScientific" placeholder="e.g. Branta canadensis" autocomplete="off" spellcheck="false"></div>
+    <div class="field-group" id="wrapScientific"><label>Scientific name</label><input id="fScientific" placeholder="e.g. Branta canadensis" autocomplete="off" spellcheck="false"></div>
     <div class="field-group" id="wrapFamily"><label>Family</label><input id="fFamily" placeholder="e.g. Anatidae" autocomplete="off" spellcheck="false"></div>
     <div class="field-group" id="wrapOrder"><label>Order</label><input id="fOrder" placeholder="e.g. Anseriformes" autocomplete="off" spellcheck="false"></div>
   </div>
@@ -299,8 +301,22 @@ function loadAudio(bird, resetIndex) {
   currentBirdXcIds = bird.xcIds || [];
   const noRec = document.getElementById('audioNoRec');
   const embed = document.getElementById('xcEmbed');
+  const customPlayer = document.getElementById('customAudioPlayer');
   const meta = document.getElementById('audioMeta');
   const refreshBtn = document.getElementById('refreshAudioBtn');
+
+  // Custom audio takes priority
+  if (bird.customAudio) {
+    embed.style.display = 'none';
+    customPlayer.style.display = 'block';
+    customPlayer.src = bird.customAudio;
+    noRec.style.display = 'none';
+    meta.innerHTML = '<em style="font-size:11px;color:var(--text3)">Custom audio file</em>';
+    refreshBtn.disabled = true;
+    return;
+  }
+
+  customPlayer.style.display = 'none';
 
   if (!currentBirdXcIds.length) {
     embed.style.display = 'none';
@@ -338,7 +354,7 @@ let activeOrders=new Set(ORDERS);
 let missedAnimals=[];
 let quizStartTime=null;
 let loadingToken=0;
-const fieldEnabled = {fFamily: true, fOrder: true};
+const fieldEnabled = {fScientific: true, fFamily: true, fOrder: true};
 
 function buildFilterBar(){
   const bar=document.getElementById('filterBar');
@@ -402,7 +418,7 @@ function checkAnswer(){
   const m=queue[current];
   const fields=[
     {id:'fCommon',    key:'common',    label:'Common name'},
-    {id:'fScientific',key:'scientific',label:'Scientific name',optional:true},
+    {id:'fScientific',key:'scientific',label:'Scientific name'},
     {id:'fFamily',    key:'family',    label:'Family'},
     {id:'fOrder',     key:'order',     label:'Order'}
   ].filter(f=>fieldEnabled[f.id]!==false);
@@ -471,7 +487,8 @@ function retryMissed(){
 function restartQuiz(){document.getElementById('endModal').classList.remove('open');rebuildQueue();}
 function toggleField(fieldId,btnId){
   fieldEnabled[fieldId]=!fieldEnabled[fieldId];
-  const wrap=document.getElementById('wrap'+fieldId[1].toUpperCase()+fieldId.slice(2));
+  const wrapMap={fScientific:'wrapScientific',fFamily:'wrapFamily',fOrder:'wrapOrder'};
+  const wrap=document.getElementById(wrapMap[fieldId]);
   const btn=document.getElementById(btnId);
   wrap.style.display=fieldEnabled[fieldId]?'':'none';
   btn.classList.toggle('active',fieldEnabled[fieldId]);
@@ -481,14 +498,6 @@ document.addEventListener('keydown',e=>{
 });
 buildFilterBar();
 rebuildQueue();
-  let scientificHidden = false;
-function toggleScientific() {
-  scientificHidden = !scientificHidden;
-  const input = document.getElementById('fScientific');
-  const btn = document.getElementById('scientificToggle');
-  input.style.display = scientificHidden ? 'none' : 'block';
-  btn.textContent = scientificHidden ? 'show' : 'hide';
-}
 </script>
 </body>
 </html>

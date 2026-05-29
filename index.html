@@ -454,16 +454,17 @@ function checkAnswer(){
 }
 function nextAnimal(){current++;loadAnimal();}
 function showHint(){
-  const m=queue[current];
-  const hints=['Order: '+m.order,'Family: '+m.family,'Genus: '+m.scientific.split(' ')[0],'Common name starts with: "'+m.common[0].toUpperCase()+'…"'];
-  function showHint(){
   const m = queue[current];
-  // ADD: track on first hint only
   if (hintStage === 0 && !hintedAnimals.find(a => a.scientific === m.scientific)) {
     hintedAnimals.push(m);
   }
-  const hints = [ ... // rest unchanged
-  hintStage=hintStage%hints.length;
+  const hints = [
+    'Order: ' + m.order,
+    'Family: ' + m.family,
+    'Genus: ' + m.scientific.split(' ')[0],
+    'Common name starts with: "' + m.common[0].toUpperCase() + '…"'
+  ];
+  hintStage = hintStage % hints.length;
   document.getElementById('feedbackBox').innerHTML=`<div class="feedback partial"><div class="feedback-row"><span class="icon">i</span>Hint ${hintStage+1}/4: ${hints[hintStage]}</div></div>`;
   hintStage++;
 }

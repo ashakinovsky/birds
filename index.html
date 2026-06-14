@@ -333,7 +333,8 @@ function stopDistractors() {
 function playDistractors(mainDuration) {
   // pick 2 random other birds that have customAudio, different from current
   const currentScientific = queue[current].scientific;
-  const pool = BIRDS.filter(b => b.customAudio && b.scientific !== currentScientific);
+  const DISTRACTOR_ORDERS = ['Passeriformes', 'Columbiformes', 'Cuculiformes', 'Apodiformes'];
+  const pool = BIRDS.filter(b => b.customAudio && b.scientific !== currentScientific && DISTRACTOR_ORDERS.includes(b.order)););
   if (!pool.length) return;
   const picks = shuffle([...pool]).slice(0, 2);
   picks.forEach(bird => {

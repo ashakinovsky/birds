@@ -91,6 +91,13 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
 .btn-sm:hover{background:var(--bg3)}
 .btn-sm:disabled{opacity:0.4;cursor:default}
 .audio-no-recording{font-size:13px;color:var(--text3);text-align:center;padding:12px 0;font-style:italic;display:none}
+.hard-mode-toggle{display:none;justify-content:center;margin-bottom:10px}
+.hard-mode-toggle.visible{display:flex}
+.hard-mode-btn{font-size:12px;padding:5px 16px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer;font-family:'Source Sans 3',sans-serif;font-weight:600;transition:all 0.15s;display:flex;align-items:center;gap:5px}
+.hard-mode-btn.active{background:#7B1D1D;border-color:#5a1414;color:#fff}
+.hard-mode-banner{display:none;background:#7B1D1D;color:#fff;font-size:12px;font-weight:600;text-align:center;border-radius:var(--radius);padding:6px 12px;margin-bottom:8px;letter-spacing:0.3px}
+.hard-mode-banner.visible{display:block}
+.audio-one-shot-msg{font-size:12px;color:var(--text3);text-align:center;font-style:italic;margin-top:4px;display:none}
 </style>
 </head>
 <body>
@@ -110,6 +117,10 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
     <button class="mode-toggle-btn active" id="modePhoto" onclick="setMode('photo')">📷 Photo</button>
     <button class="mode-toggle-btn" id="modeAudio" onclick="setMode('audio')">🔊 Audio</button>
   </div>
+  <div class="hard-mode-toggle" id="hardModeToggle">
+    <button class="hard-mode-btn" id="hardModeBtn" onclick="toggleHardMode()">💀 Hard mode: OFF</button>
+  </div>
+  <div class="hard-mode-banner" id="hardModeBanner">💀 HARD MODE — one listen only, background noise enabled</div>
   <div class="img-wrap" id="imgWrap" style="display:block">
     <div class="img-loading-msg" id="imgLoadingMsg">Loading photo…</div>
     <img id="animalImg" src="" alt="Bird to identify" style="display:none">
@@ -121,6 +132,7 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
     <iframe id="xcEmbed" class="xc-embed" height="52" scrolling="no" frameborder="0" src="about:blank"></iframe>
     <audio id="customAudioPlayer" controls style="width:100%;display:none;border-radius:var(--radius)"></audio>
     <div class="audio-no-recording" id="audioNoRec">No recording available for this species.</div>
+    <div class="audio-one-shot-msg" id="oneShotMsg">🔇 You had one listen. That's it.</div>
     <div class="audio-meta" id="audioMeta"></div>
     <div class="audio-controls">
       <button class="btn-sm" id="refreshAudioBtn" onclick="refreshAudio()">↻ Different recording</button>
@@ -261,6 +273,18 @@ async function fetchTaxonPhoto(scientific) {
 let currentAudioIndex = 0;
 let currentBirdXcIds = [];
 let quizMode = 'photo';
+let hardMode = false;
+let hardModeAudioPlayed = false;
+let distractorAudios = []; // background Audio elements for hard mode
+
+function toggleHardMode() {
+  hardMode = !hardMode;
+  const btn = document.getElementById('hardModeBtn');
+  const banner = document.getElementById('hardModeBanner');
+  btn.classList.toggle('active', hardMode);
+  btn.textContent = hardMode ? '💀 Hard mode: ON' : '💀 Hard mode: OFF';
+  banner.classList.toggle('visible', hardMode);
+}
 
 function setMode(mode) {
   quizMode = mode;
@@ -268,6 +292,8 @@ function setMode(mode) {
   document.getElementById('modeAudio').classList.toggle('active', mode === 'audio');
   document.getElementById('imgWrap').style.display = mode === 'photo' ? 'block' : 'none';
   document.getElementById('audioWrap').classList.toggle('visible', mode === 'audio');
+  // show/hide hard mode toggle
+  document.getElementById('hardModeToggle').classList.toggle('visible', mode === 'audio');
   if (queue.length > 0 && current < queue.length) {
     if (mode === 'audio') loadAudio(queue[current], true);
     else loadPhoto(queue[current].scientific);
@@ -299,7 +325,33 @@ async function loadPhoto(scientific) {
   }
 }
 
+function stopDistractors() {
+  distractorAudios.forEach(a => { try { a.pause(); a.src = ''; } catch(e){} });
+  distractorAudios = [];
+}
+
+function playDistractors(mainDuration) {
+  // pick 2 random other birds that have customAudio, different from current
+  const currentScientific = queue[current].scientific;
+  const pool = BIRDS.filter(b => b.customAudio && b.scientific !== currentScientific);
+  if (!pool.length) return;
+  const picks = shuffle([...pool]).slice(0, 2);
+  picks.forEach(bird => {
+    const delay = 1000 + Math.random() * (mainDuration * 0.5 * 1000); // start somewhere in first half
+    setTimeout(() => {
+      const a = new Audio(bird.customAudio);
+      a.volume = 0.3 + Math.random() * 0.2; // 30-50% volume
+      a.play().catch(()=>{});
+      distractorAudios.push(a);
+      // stop distractor after a random snippet (3-6 seconds)
+      setTimeout(() => { try { a.pause(); } catch(e){} }, 3000 + Math.random() * 3000);
+    }, delay);
+  });
+}
+
 function loadAudio(bird, resetIndex) {
+  stopDistractors();
+  hardModeAudioPlayed = false;
   if (resetIndex) currentAudioIndex = 0;
   currentBirdXcIds = bird.xcIds || [];
   const noRec = document.getElementById('audioNoRec');
@@ -307,6 +359,8 @@ function loadAudio(bird, resetIndex) {
   const customPlayer = document.getElementById('customAudioPlayer');
   const meta = document.getElementById('audioMeta');
   const refreshBtn = document.getElementById('refreshAudioBtn');
+  const oneShotMsg = document.getElementById('oneShotMsg');
+  oneShotMsg.style.display = 'none';
 
   // Custom audio takes priority
   if (bird.customAudio) {
@@ -315,11 +369,40 @@ function loadAudio(bird, resetIndex) {
     customPlayer.src = bird.customAudio;
     noRec.style.display = 'none';
     meta.innerHTML = '<em style="font-size:11px;color:var(--text3)">Custom audio file</em>';
-    refreshBtn.disabled = true;
+
+    if (hardMode) {
+      refreshBtn.disabled = true;
+      customPlayer.controls = true;
+      // when playback starts, fire distractors and set one-shot listener
+      customPlayer.onplay = () => {
+        if (!hardModeAudioPlayed) {
+          hardModeAudioPlayed = true;
+          // estimate duration; use 8s as fallback if metadata not loaded yet
+          const dur = customPlayer.duration > 0 ? customPlayer.duration : 8;
+          playDistractors(dur);
+        }
+      };
+      customPlayer.onended = () => {
+        stopDistractors();
+        // disable replay by replacing src after ended
+        setTimeout(() => {
+          customPlayer.controls = false;
+          customPlayer.src = '';
+          oneShotMsg.style.display = 'block';
+        }, 200);
+      };
+    } else {
+      customPlayer.controls = true;
+      customPlayer.onplay = null;
+      customPlayer.onended = null;
+      refreshBtn.disabled = true;
+    }
     return;
   }
 
   customPlayer.style.display = 'none';
+  customPlayer.onplay = null;
+  customPlayer.onended = null;
 
   if (!currentBirdXcIds.length) {
     embed.style.display = 'none';
@@ -331,7 +414,8 @@ function loadAudio(bird, resetIndex) {
 
   noRec.style.display = 'none';
   embed.style.display = 'block';
-  refreshBtn.disabled = currentBirdXcIds.length <= 1;
+  // For XC embeds in hard mode we can't easily intercept play, so just disable refresh
+  refreshBtn.disabled = hardMode || currentBirdXcIds.length <= 1;
   showAudioRecording(currentAudioIndex);
 }
 
@@ -340,8 +424,7 @@ function showAudioRecording(idx) {
   const id = currentBirdXcIds[idx % currentBirdXcIds.length];
   const embed = document.getElementById('xcEmbed');
   const meta = document.getElementById('audioMeta');
-  // XC simple embed player — no CORS, no API key, works on GitHub Pages or any host
-    embed.src = `https://xeno-canto.org/embed/simple/${id}?simple=1`;
+  embed.src = `https://xeno-canto.org/embed/simple/${id}?simple=1`;
   meta.innerHTML = `<a href="https://xeno-canto.org/${id}" target="_blank">XC${id} · xeno-canto.org</a>`;
 }
 
@@ -452,7 +535,7 @@ function checkAnswer(){
     document.getElementById('submitBtn').disabled=true;
   }
 }
-function nextAnimal(){current++;loadAnimal();}
+function nextAnimal(){stopDistractors();current++;loadAnimal();}
 function showHint(){
   const m = queue[current];
   if (hintStage === 0 && !hintedAnimals.find(a => a.scientific === m.scientific)) {

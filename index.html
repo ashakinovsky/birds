@@ -131,6 +131,7 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
     <div class="audio-bird-icon">🐦</div>
     <iframe id="xcEmbed" class="xc-embed" height="52" scrolling="no" frameborder="0" src="about:blank"></iframe>
     <audio id="customAudioPlayer" controls style="width:100%;display:none;border-radius:var(--radius)"></audio>
+    <audio id="ambientAudio" loop style="display:none"></audio>
     <div class="audio-no-recording" id="audioNoRec">No recording available for this species.</div>
     <div class="audio-one-shot-msg" id="oneShotMsg">🔇 You had one listen. That's it.</div>
     <div class="audio-meta" id="audioMeta"></div>
@@ -326,15 +327,30 @@ async function loadPhoto(scientific) {
 }
 
 function stopDistractors() {
+  stopAmbient();
   distractorAudios.forEach(a => { try { a.pause(); a.src = ''; } catch(e){} });
   distractorAudios = [];
+}
+
+const AMBIENT_SRCS = ['audio/footsteps1.wav', 'audio/footsteps2.wav'];
+
+function startAmbient() {
+  const a = document.getElementById('ambientAudio');
+  a.src = AMBIENT_SRCS[Math.floor(Math.random() * AMBIENT_SRCS.length)];
+  a.volume = 0.45;
+  a.play().catch(()=>{});
+}
+
+function stopAmbient() {
+  const a = document.getElementById('ambientAudio');
+  a.pause();
+  a.currentTime = 0;
 }
 
 function playDistractors(mainDuration) {
   // pick 2 random other birds that have customAudio, different from current
   const currentScientific = queue[current].scientific;
-  const DISTRACTOR_ORDERS = ['Passeriformes', 'Columbiformes', 'Cuculiformes', 'Apodiformes'];
-  const pool = BIRDS.filter(b => b.customAudio && b.scientific !== currentScientific && DISTRACTOR_ORDERS.includes(b.order));
+  const pool = BIRDS.filter(b => b.customAudio && b.scientific !== currentScientific);
   if (!pool.length) return;
   const picks = shuffle([...pool]).slice(0, 2);
   picks.forEach(bird => {
@@ -376,16 +392,15 @@ function loadAudio(bird, resetIndex) {
       customPlayer.controls = true;
       // when playback starts, fire distractors and set one-shot listener
       customPlayer.onplay = () => {
+        startAmbient();
         if (!hardModeAudioPlayed) {
           hardModeAudioPlayed = true;
-          // estimate duration; use 8s as fallback if metadata not loaded yet
           const dur = customPlayer.duration > 0 ? customPlayer.duration : 8;
           playDistractors(dur);
         }
       };
       customPlayer.onended = () => {
-        stopDistractors();
-        // disable replay by replacing src after ended
+        stopDistractors(); // also stops ambient
         setTimeout(() => {
           customPlayer.controls = false;
           customPlayer.src = '';
@@ -394,8 +409,8 @@ function loadAudio(bird, resetIndex) {
       };
     } else {
       customPlayer.controls = true;
-      customPlayer.onplay = null;
-      customPlayer.onended = null;
+      customPlayer.onplay = () => { startAmbient(); };
+      customPlayer.onended = () => { stopAmbient(); };
       refreshBtn.disabled = true;
     }
     return;

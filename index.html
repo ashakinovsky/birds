@@ -329,6 +329,8 @@ async function loadPhoto(scientific) {
 }
 
 function stopDistractors() {
+  distractorTimeouts.forEach(t => clearTimeout(t));
+  distractorTimeouts = [];
   stopAmbient();
   distractorAudios.forEach(a => { try { a.pause(); a.src = ''; } catch(e){} });
   distractorAudios = [];
@@ -349,22 +351,24 @@ function stopAmbient() {
   a.currentTime = 0;
 }
 
+let distractorTimeouts = [];
+
 function playDistractors(mainDuration) {
-  // pick 2 random other birds that have customAudio, different from current
   const currentScientific = queue[current].scientific;
-  const pool = BIRDS.filter(b => b.customAudio && b.scientific !== currentScientific);
+  const DISTRACTOR_ORDERS = ['Passeriformes', 'Columbiformes', 'Cuculiformes', 'Apodiformes'];
+  const pool = BIRDS.filter(b => b.customAudio && b.scientific !== currentScientific && DISTRACTOR_ORDERS.includes(b.order));
   if (!pool.length) return;
   const picks = shuffle([...pool]).slice(0, 2);
   picks.forEach(bird => {
-    const delay = 1000 + Math.random() * (mainDuration * 0.5 * 1000); // start somewhere in first half
-    setTimeout(() => {
+    const delay = 1000 + Math.random() * (mainDuration * 0.5 * 1000);
+    const t = setTimeout(() => {
       const a = new Audio(bird.customAudio);
-      a.volume = 0.3 + Math.random() * 0.2; // 30-50% volume
+      a.volume = 0.3 + Math.random() * 0.2;
       a.play().catch(()=>{});
       distractorAudios.push(a);
-      // stop distractor after a random snippet (3-6 seconds)
       setTimeout(() => { try { a.pause(); } catch(e){} }, 3000 + Math.random() * 3000);
     }, delay);
+    distractorTimeouts.push(t);
   });
 }
 
@@ -400,24 +404,24 @@ function loadAudio(bird, resetIndex) {
       playDistractors(dur);
     }
   };
-  customPlayer.onpause = () => { stopAmbient(); };
-  customPlayer.onended = () => {
-    stopDistractors();
-    setTimeout(() => {
-      customPlayer.controls = false;
-      customPlayer.src = '';
-      oneShotMsg.style.display = 'block';
-    }, 200);
-  };
-    } else {
-      customPlayer.controls = true;
-      customPlayer.onplay = () => { startAmbient(); };
-      customPlayer.onpause = () => { stopAmbient(); };
-      customPlayer.onended = () => { stopAmbient(); };
-      refreshBtn.disabled = true;
-    }
-    return;
+  customPlayer.onpause = () => { stopAmbient(); stopDistractors(); };
+customPlayer.onended = () => {
+  stopDistractors();
+  setTimeout(() => {
+    customPlayer.controls = false;
+    customPlayer.src = '';
+    oneShotMsg.style.display = 'block';
+  }, 200);
+};
+  } else {
+    customPlayer.controls = true;
+    customPlayer.onplay = () => { startAmbient(); };
+    customPlayer.onpause = () => { stopAmbient(); };
+    customPlayer.onended = () => { stopAmbient(); };
+    refreshBtn.disabled = true;
   }
+  return;
+}
 
   customPlayer.style.display = 'none';
   customPlayer.onplay = null;

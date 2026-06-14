@@ -288,6 +288,8 @@ function toggleHardMode() {
 }
 
 function setMode(mode) {
+  stopAmbient();
+  stopDistractors();
   quizMode = mode;
   document.getElementById('modePhoto').classList.toggle('active', mode === 'photo');
   document.getElementById('modeAudio').classList.toggle('active', mode === 'audio');
@@ -388,28 +390,29 @@ function loadAudio(bird, resetIndex) {
     meta.innerHTML = '<em style="font-size:11px;color:var(--text3)">Custom audio file</em>';
 
     if (hardMode) {
-      refreshBtn.disabled = true;
-      customPlayer.controls = true;
-      // when playback starts, fire distractors and set one-shot listener
-      customPlayer.onplay = () => {
-        startAmbient();
-        if (!hardModeAudioPlayed) {
-          hardModeAudioPlayed = true;
-          const dur = customPlayer.duration > 0 ? customPlayer.duration : 8;
-          playDistractors(dur);
-        }
-      };
-      customPlayer.onended = () => {
-        stopDistractors(); // also stops ambient
-        setTimeout(() => {
-          customPlayer.controls = false;
-          customPlayer.src = '';
-          oneShotMsg.style.display = 'block';
-        }, 200);
-      };
+  refreshBtn.disabled = true;
+  customPlayer.controls = true;
+  customPlayer.onplay = () => {
+    startAmbient();
+    if (!hardModeAudioPlayed) {
+      hardModeAudioPlayed = true;
+      const dur = customPlayer.duration > 0 ? customPlayer.duration : 8;
+      playDistractors(dur);
+    }
+  };
+  customPlayer.onpause = () => { stopAmbient(); };
+  customPlayer.onended = () => {
+    stopDistractors();
+    setTimeout(() => {
+      customPlayer.controls = false;
+      customPlayer.src = '';
+      oneShotMsg.style.display = 'block';
+    }, 200);
+  };
     } else {
       customPlayer.controls = true;
       customPlayer.onplay = () => { startAmbient(); };
+      customPlayer.onpause = () => { stopAmbient(); };
       customPlayer.onended = () => { stopAmbient(); };
       refreshBtn.disabled = true;
     }

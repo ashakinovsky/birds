@@ -304,6 +304,10 @@ function setMode(mode) {
 }
 
 async function loadPhoto(scientific) {
+  stopDistractors();
+  const customPlayer = document.getElementById('customAudioPlayer');
+  customPlayer.pause();
+  customPlayer.src = '';
   const img = document.getElementById('animalImg');
   const noImg = document.getElementById('noImg');
   const loadMsg = document.getElementById('imgLoadingMsg');

@@ -98,6 +98,26 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
 .hard-mode-banner{display:none;background:#7B1D1D;color:#fff;font-size:12px;font-weight:600;text-align:center;border-radius:var(--radius);padding:6px 12px;margin-bottom:8px;letter-spacing:0.3px}
 .hard-mode-banner.visible{display:block}
 .audio-one-shot-msg{font-size:12px;color:var(--text3);text-align:center;font-style:italic;margin-top:4px;display:none}
+.nh-toggle{display:flex;justify-content:center;margin-bottom:10px}
+.nh-btn{font-size:12px;padding:5px 16px;border-radius:20px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer;font-family:'Source Sans 3',sans-serif;font-weight:600;transition:all 0.15s}
+.nh-btn.active{background:#1a4a7a;border-color:#0e2f52;color:#fff}
+.nh-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:center;justify-content:center}
+.nh-overlay.open{display:flex}
+.nh-card{background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:28px 24px;max-width:420px;width:92%;text-align:center}
+.nh-card h3{font-family:'Playfair Display',serif;font-size:18px;color:var(--text);margin-bottom:4px}
+.nh-card .nh-sub{font-size:12px;color:var(--text3);margin-bottom:20px}
+.nh-question{font-size:15px;font-weight:600;color:var(--text);margin-bottom:14px;line-height:1.4}
+.nh-choices{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px}
+.nh-choice{padding:8px 16px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg2);color:var(--text);font-size:13px;font-family:'Source Sans 3',sans-serif;font-weight:600;cursor:pointer;transition:background 0.15s,border-color 0.15s}
+.nh-choice:hover{background:var(--bg3)}
+.nh-choice.correct{background:var(--green-light);border-color:var(--green);color:var(--green-dark);cursor:default}
+.nh-choice.incorrect{background:var(--red-light);border-color:var(--red);color:var(--red);cursor:default}
+.nh-choice.reveal{background:var(--green-light);border-color:var(--green);color:var(--green-dark);cursor:default}
+.nh-choice:disabled{cursor:default}
+.nh-feedback{font-size:13px;margin-bottom:14px;min-height:20px;color:var(--text2)}
+.nh-next{padding:9px 28px;border-radius:var(--radius);border:0.5px solid var(--green-dark);background:var(--green);color:#fff;font-size:14px;font-family:'Source Sans 3',sans-serif;font-weight:600;cursor:pointer;display:none}
+.nh-next:hover{background:var(--green-dark)}
+.nh-progress{font-size:11px;color:var(--text3);margin-bottom:16px}
 </style>
 </head>
 <body>
@@ -153,10 +173,25 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--bg3);color:var(--te
   <div class="actions">
     <button class="btn" id="hintBtn" onclick="showHint()">Hint</button>
     <button class="btn btn-primary" id="submitBtn" onclick="checkAnswer()">Submit</button>
-    <button class="btn" id="skipBtn" onclick="nextAnimal()">Skip →</button>
+    <button class="btn" id="skipBtn" onclick="skipAnimal()">Skip →</button>
   </div>
   <div id="feedbackBox"></div>
   <div class="mode-info">Press <strong>Enter</strong> to submit &middot; <strong>Tab</strong> to move between fields</div>
+  <div class="nh-toggle">
+    <button class="nh-btn" id="nhBtn" onclick="toggleNHMode()">🌿 Natural History Questions: OFF</button>
+  </div>
+</div>
+
+<div class="nh-overlay" id="nhOverlay">
+  <div class="nh-card">
+    <h3 id="nhBirdName"></h3>
+    <div class="nh-sub" id="nhBirdSci"></div>
+    <div class="nh-progress" id="nhProgress"></div>
+    <div class="nh-question" id="nhQuestion"></div>
+    <div class="nh-choices" id="nhChoices"></div>
+    <div class="nh-feedback" id="nhFeedback"></div>
+    <button class="nh-next" id="nhNext" onclick="nhAdvance()">Next →</button>
+  </div>
 </div>
 
 <div class="modal-bg" id="endModal">
@@ -254,7 +289,164 @@ const BIRDS=[
   {common:"Indigo Bunting",         scientific:"Passerina cyanea",           family:"Cardinalidae",    order:"Passeriformes",   xcIds:[579108,433033,235738], customAudio:"audio/media70.m4a"},
 ];
 
-// Photo cache
+// Natural history data: residency and nesting for each species
+// residency: 'resident' or 'neotropical migrant'
+// nesting: one of the eight choices
+const NH = {
+  "Branta canadensis":          {residency:"resident",            nesting:"ground"},
+  "Anas platyrhynchos":         {residency:"resident",            nesting:"ground"},
+  "Colinus virginianus":        {residency:"resident",            nesting:"ground"},
+  "Meleagris gallopavo":        {residency:"resident",            nesting:"ground"},
+  "Zenaida macroura":           {residency:"resident",            nesting:"shrubs"},
+  "Coccyzus americanus":        {residency:"neotropical migrant", nesting:"shrubs"},
+  "Antrostomus carolinensis":   {residency:"neotropical migrant", nesting:"ground"},
+  "Antrostomus vociferus":      {residency:"neotropical migrant", nesting:"ground"},
+  "Chaetura pelagica":          {residency:"neotropical migrant", nesting:"primary cavity nester"},
+  "Archilochus colubris":       {residency:"neotropical migrant", nesting:"canopy"},
+  "Ardea herodias":             {residency:"resident",            nesting:"canopy"},
+  "Butorides virescens":        {residency:"neotropical migrant", nesting:"shrubs"},
+  "Coragyps atratus":           {residency:"resident",            nesting:"ground"},
+  "Cathartes aura":             {residency:"resident",            nesting:"ground"},
+  "Haliaeetus leucocephalus":   {residency:"resident",            nesting:"canopy"},
+  "Buteo lineatus":             {residency:"resident",            nesting:"canopy"},
+  "Buteo jamaicensis":          {residency:"resident",            nesting:"canopy"},
+  "Megascops asio":             {residency:"resident",            nesting:"primary cavity nester"},
+  "Bubo virginianus":           {residency:"resident",            nesting:"canopy"},
+  "Strix varia":                {residency:"resident",            nesting:"primary cavity nester"},
+  "Megaceryle alcyon":          {residency:"resident",            nesting:"ground"},
+  "Melanerpes erythrocephalus": {residency:"resident",            nesting:"primary cavity nester"},
+  "Melanerpes carolinus":       {residency:"resident",            nesting:"primary cavity nester"},
+  "Dryobates pubescens":        {residency:"resident",            nesting:"primary cavity nester"},
+  "Dryobates villosus":         {residency:"resident",            nesting:"primary cavity nester"},
+  "Colaptes auratus":           {residency:"resident",            nesting:"primary cavity nester"},
+  "Dryocopus pileatus":         {residency:"resident",            nesting:"primary cavity nester"},
+  "Falco sparverius":           {residency:"resident",            nesting:"primary cavity nester"},
+  "Myiarchus crinitus":         {residency:"neotropical migrant", nesting:"secondary cavity nester"},
+  "Tyrannus tyrannus":          {residency:"neotropical migrant", nesting:"canopy"},
+  "Contopus virens":            {residency:"neotropical migrant", nesting:"canopy"},
+  "Empidonax virescens":        {residency:"neotropical migrant", nesting:"understory"},
+  "Sayornis phoebe":            {residency:"resident",            nesting:"understory"},
+  "Vireo griseus":              {residency:"resident",            nesting:"shrubs"},
+  "Vireo olivaceus":            {residency:"neotropical migrant", nesting:"canopy"},
+  "Cyanocitta cristata":        {residency:"resident",            nesting:"midstory"},
+  "Corvus brachyrhynchos":      {residency:"resident",            nesting:"canopy"},
+  "Corvus ossifragus":          {residency:"resident",            nesting:"canopy"},
+  "Stelgidopteryx serripennis": {residency:"neotropical migrant", nesting:"secondary cavity nester"},
+  "Hirundo rustica":            {residency:"neotropical migrant", nesting:"understory"},
+  "Poecile carolinensis":       {residency:"resident",            nesting:"primary cavity nester"},
+  "Baeolophus bicolor":         {residency:"resident",            nesting:"primary cavity nester"},
+  "Sitta carolinensis":         {residency:"resident",            nesting:"primary cavity nester"},
+  "Sitta pusilla":              {residency:"resident",            nesting:"primary cavity nester"},
+  "Thryothorus ludovicianus":   {residency:"resident",            nesting:"shrubs"},
+  "Polioptila caerulea":        {residency:"neotropical migrant", nesting:"midstory"},
+  "Sialia sialis":              {residency:"resident",            nesting:"secondary cavity nester"},
+  "Hylocichla mustelina":       {residency:"neotropical migrant", nesting:"understory"},
+  "Turdus migratorius":         {residency:"resident",            nesting:"midstory"},
+  "Dumetella carolinensis":     {residency:"neotropical migrant", nesting:"shrubs"},
+  "Toxostoma rufum":            {residency:"resident",            nesting:"shrubs"},
+  "Mimus polyglottos":          {residency:"resident",            nesting:"shrubs"},
+  "Bombycilla cedrorum":        {residency:"resident",            nesting:"midstory"},
+  "Haemorhous mexicanus":       {residency:"resident",            nesting:"shrubs"},
+  "Spinus tristis":             {residency:"resident",            nesting:"shrubs"},
+  "Spizella passerina":         {residency:"neotropical migrant", nesting:"shrubs"},
+  "Pipilo erythrophthalmus":    {residency:"resident",            nesting:"ground"},
+  "Icteria virens":             {residency:"neotropical migrant", nesting:"shrubs"},
+  "Sturnella magna":            {residency:"resident",            nesting:"ground"},
+  "Molothrus ater":             {residency:"resident",            nesting:"brood parasite"},
+  "Seiurus aurocapilla":        {residency:"neotropical migrant", nesting:"ground"},
+  "Parkesia motacilla":         {residency:"neotropical migrant", nesting:"ground"},
+  "Parkesia noveboracensis":    {residency:"neotropical migrant", nesting:"ground"},
+  "Mniotilta varia":            {residency:"neotropical migrant", nesting:"canopy"},
+  "Geothlypis formosa":         {residency:"neotropical migrant", nesting:"ground"},
+  "Geothlypis trichas":         {residency:"neotropical migrant", nesting:"ground"},
+  "Setophaga citrina":          {residency:"neotropical migrant", nesting:"ground"},
+  "Setophaga americana":        {residency:"neotropical migrant", nesting:"canopy"},
+  "Setophaga petechia":         {residency:"neotropical migrant", nesting:"shrubs"},
+  "Setophaga pinus":            {residency:"resident",            nesting:"canopy"},
+  "Setophaga dominica":         {residency:"resident",            nesting:"canopy"},
+  "Setophaga discolor":         {residency:"neotropical migrant", nesting:"shrubs"},
+  "Piranga olivacea":           {residency:"neotropical migrant", nesting:"canopy"},
+  "Piranga rubra":              {residency:"neotropical migrant", nesting:"midstory"},
+  "Cardinalis cardinalis":      {residency:"resident",            nesting:"shrubs"},
+  "Passerina caerulea":         {residency:"neotropical migrant", nesting:"shrubs"},
+  "Passerina cyanea":           {residency:"neotropical migrant", nesting:"shrubs"},
+};
+
+const NH_QUESTIONS = [
+  {
+    key: 'residency',
+    question: 'What is this bird\'s residency status?',
+    choices: ['resident', 'neotropical migrant']
+  },
+  {
+    key: 'nesting',
+    question: 'Where does this bird nest?',
+    choices: ['primary cavity nester', 'secondary cavity nester', 'canopy', 'midstory', 'understory', 'ground', 'shrubs', 'brood parasite']
+  }
+];
+
+let nhMode = false;
+let nhStep = 0; // 0 = residency, 1 = nesting
+let nhAnswered = false;
+
+function toggleNHMode() {
+  nhMode = !nhMode;
+  const btn = document.getElementById('nhBtn');
+  btn.classList.toggle('active', nhMode);
+  btn.textContent = nhMode ? '🌿 Natural History Questions: ON' : '🌿 Natural History Questions: OFF';
+}
+
+function showNHOverlay(bird) {
+  nhStep = 0;
+  nhAnswered = false;
+  document.getElementById('nhBirdName').textContent = bird.common;
+  document.getElementById('nhBirdSci').textContent = bird.scientific;
+  renderNHQuestion(bird);
+  document.getElementById('nhOverlay').classList.add('open');
+}
+
+function renderNHQuestion(bird) {
+  const q = NH_QUESTIONS[nhStep];
+  nhAnswered = false;
+  document.getElementById('nhProgress').textContent = `Question ${nhStep + 1} of ${NH_QUESTIONS.length}`;
+  document.getElementById('nhQuestion').textContent = q.question;
+  document.getElementById('nhFeedback').textContent = '';
+  document.getElementById('nhNext').style.display = 'none';
+
+  const choicesEl = document.getElementById('nhChoices');
+  choicesEl.innerHTML = '';
+  q.choices.forEach(choice => {
+    const btn = document.createElement('button');
+    btn.className = 'nh-choice';
+    btn.textContent = choice;
+    btn.onclick = () => handleNHChoice(btn, choice, bird);
+    choicesEl.appendChild(btn);
+  });
+}
+
+function handleNHChoice(btn, choice, bird) {
+  if (nhAnswered) return;
+  nhAnswered = true;
+  const q = NH_QUESTIONS[nhStep];
+  const nhData = NH[bird.scientific];
+  const correct = nhData && nhData[q.key];
+  const allBtns = document.querySelectorAll('.nh-choice');
+  allBtns.forEach(b => {
+    b.onclick = null;
+    if (b.textContent === correct) b.classList.add('reveal');
+  });
+  if (choice === correct) {
+    btn.classList.add('correct');
+    document.getElementById('nhFeedback').textContent = '✓ Correct!';
+  } else {
+    btn.classList.add('incorrect');
+    document.getElementById('nhFeedback').textContent = `✗ The correct answer is: ${correct}`;
+  }
+  document.getElementById('nhNext').style.display = 'inline-block';
+  document.getElementById('nhNext').textContent = nhStep < NH_QUESTIONS.length - 1 ? 'Next question →' : 'Continue quiz →';
+}
+
+function nhAdvance_placeholder(){} // replaced below
 const photoCache = {};
 async function fetchTaxonPhoto(scientific) {
   if (photoCache[scientific]) return photoCache[scientific];
@@ -288,8 +480,6 @@ function toggleHardMode() {
 }
 
 function setMode(mode) {
-  stopAmbient();
-  stopDistractors();
   quizMode = mode;
   document.getElementById('modePhoto').classList.toggle('active', mode === 'photo');
   document.getElementById('modeAudio').classList.toggle('active', mode === 'audio');
@@ -304,10 +494,6 @@ function setMode(mode) {
 }
 
 async function loadPhoto(scientific) {
-  stopDistractors();
-  const customPlayer = document.getElementById('customAudioPlayer');
-  customPlayer.pause();
-  customPlayer.src = '';
   const img = document.getElementById('animalImg');
   const noImg = document.getElementById('noImg');
   const loadMsg = document.getElementById('imgLoadingMsg');
@@ -333,8 +519,6 @@ async function loadPhoto(scientific) {
 }
 
 function stopDistractors() {
-  distractorTimeouts.forEach(t => clearTimeout(t));
-  distractorTimeouts = [];
   stopAmbient();
   distractorAudios.forEach(a => { try { a.pause(); a.src = ''; } catch(e){} });
   distractorAudios = [];
@@ -355,24 +539,22 @@ function stopAmbient() {
   a.currentTime = 0;
 }
 
-let distractorTimeouts = [];
-
 function playDistractors(mainDuration) {
+  // pick 2 random other birds that have customAudio, different from current
   const currentScientific = queue[current].scientific;
-  const DISTRACTOR_ORDERS = ['Passeriformes', 'Columbiformes', 'Cuculiformes', 'Apodiformes'];
-  const pool = BIRDS.filter(b => b.customAudio && b.scientific !== currentScientific && DISTRACTOR_ORDERS.includes(b.order));
+  const pool = BIRDS.filter(b => b.customAudio && b.scientific !== currentScientific);
   if (!pool.length) return;
   const picks = shuffle([...pool]).slice(0, 2);
   picks.forEach(bird => {
-    const delay = 1000 + Math.random() * (mainDuration * 0.5 * 1000);
-    const t = setTimeout(() => {
+    const delay = 1000 + Math.random() * (mainDuration * 0.5 * 1000); // start somewhere in first half
+    setTimeout(() => {
       const a = new Audio(bird.customAudio);
-      a.volume = 0.3 + Math.random() * 0.2;
+      a.volume = 0.3 + Math.random() * 0.2; // 30-50% volume
       a.play().catch(()=>{});
       distractorAudios.push(a);
+      // stop distractor after a random snippet (3-6 seconds)
       setTimeout(() => { try { a.pause(); } catch(e){} }, 3000 + Math.random() * 3000);
     }, delay);
-    distractorTimeouts.push(t);
   });
 }
 
@@ -398,34 +580,33 @@ function loadAudio(bird, resetIndex) {
     meta.innerHTML = '<em style="font-size:11px;color:var(--text3)">Custom audio file</em>';
 
     if (hardMode) {
-  refreshBtn.disabled = true;
-  customPlayer.controls = true;
-  customPlayer.onplay = () => {
-    startAmbient();
-    if (!hardModeAudioPlayed) {
-      hardModeAudioPlayed = true;
-      const dur = customPlayer.duration > 0 ? customPlayer.duration : 8;
-      playDistractors(dur);
+      refreshBtn.disabled = true;
+      customPlayer.controls = true;
+      // when playback starts, fire distractors and set one-shot listener
+      customPlayer.onplay = () => {
+        startAmbient();
+        if (!hardModeAudioPlayed) {
+          hardModeAudioPlayed = true;
+          const dur = customPlayer.duration > 0 ? customPlayer.duration : 8;
+          playDistractors(dur);
+        }
+      };
+      customPlayer.onended = () => {
+        stopDistractors(); // also stops ambient
+        setTimeout(() => {
+          customPlayer.controls = false;
+          customPlayer.src = '';
+          oneShotMsg.style.display = 'block';
+        }, 200);
+      };
+    } else {
+      customPlayer.controls = true;
+      customPlayer.onplay = () => { startAmbient(); };
+      customPlayer.onended = () => { stopAmbient(); };
+      refreshBtn.disabled = true;
     }
-  };
-  customPlayer.onpause = () => { stopAmbient(); stopDistractors(); };
-customPlayer.onended = () => {
-  stopDistractors();
-  setTimeout(() => {
-    customPlayer.controls = false;
-    customPlayer.src = '';
-    oneShotMsg.style.display = 'block';
-  }, 200);
-};
-  } else {
-    customPlayer.controls = true;
-    customPlayer.onplay = () => { startAmbient(); };
-    customPlayer.onpause = () => { stopAmbient(); };
-    customPlayer.onended = () => { stopAmbient(); };
-    refreshBtn.disabled = true;
+    return;
   }
-  return;
-}
 
   customPlayer.style.display = 'none';
   customPlayer.onplay = null;
@@ -562,7 +743,28 @@ function checkAnswer(){
     document.getElementById('submitBtn').disabled=true;
   }
 }
-function nextAnimal(){stopDistractors();current++;loadAnimal();}
+function nextAnimal(){
+  stopDistractors();
+  current++;
+  if (nhMode && answered && current > 0 && current <= queue.length) {
+    const bird = queue[current - 1];
+    showNHOverlay(bird);
+  } else {
+    loadAnimal();
+  }
+}
+function skipAnimal(){stopDistractors();current++;loadAnimal();}
+
+function nhAdvance() {
+  nhStep++;
+  const bird = queue[current - 1];
+  if (nhStep < NH_QUESTIONS.length) {
+    renderNHQuestion(bird);
+  } else {
+    document.getElementById('nhOverlay').classList.remove('open');
+    loadAnimal();
+  }
+}
 function showHint(){
   const m = queue[current];
   if (hintStage === 0 && !hintedAnimals.find(a => a.scientific === m.scientific)) {
